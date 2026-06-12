@@ -111,8 +111,8 @@ export default async function LeadDetailPage({
       poi={poi}
       proofFiles={proofFiles}
       submitterNickname={submitterProfile?.nickname ?? "—"}
-      history={(historyRaw ?? []) as HistoryEntry[]}
-      notes={(notesRaw ?? []) as NoteEntry[]}
+      history={(historyRaw ?? []) as unknown as HistoryEntry[]}
+      notes={(notesRaw ?? []) as unknown as NoteEntry[]}
     />
   );
 }

@@ -94,8 +94,8 @@ export default async function TaskDetailPage({
       claim={claim}
       poi={poi}
       proofFiles={proofFiles}
-      history={(historyRaw ?? []) as HistoryEntry[]}
-      notes={(notesRaw ?? []) as NoteEntry[]}
+      history={(historyRaw ?? []) as unknown as HistoryEntry[]}
+      notes={(notesRaw ?? []) as unknown as NoteEntry[]}
     />
   );
 }
