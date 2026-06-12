@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-type Lead = {
+export type Lead = {
   claim_id: number;
   claim_status: string;
   submitted_at: string | null;

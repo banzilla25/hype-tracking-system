@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import TasksPageClient from "@/components/tasks-page-client";
+import TasksPageClient, { type TaskClaim } from "@/components/tasks-page-client";
 
 const TERMINAL_STATUSES = [
   "gagal",
@@ -43,5 +43,5 @@ export default async function TasksPage() {
     .not("claim_status", "in", `(${TERMINAL_STATUSES.join(",")})`)
     .order("last_activity_at", { ascending: false });
 
-  return <TasksPageClient claims={claims ?? []} />;
+  return <TasksPageClient claims={(claims ?? []) as unknown as TaskClaim[]} />;
 }

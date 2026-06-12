@@ -18,7 +18,7 @@ function timeAgo(dateStr: string): string {
   }
 }
 
-type TaskClaim = {
+export type TaskClaim = {
   claim_id: number;
   claim_status: string;
   pic_name: string | null;

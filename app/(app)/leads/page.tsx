@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import LeadsPageClient from "@/components/leads-page-client";
+import LeadsPageClient, { type Lead } from "@/components/leads-page-client";
 
 const FASE2_STATUSES = [
   "submitted",
@@ -45,5 +45,5 @@ export default async function LeadsPage() {
     .in("claim_status", FASE2_STATUSES)
     .order("last_activity_at", { ascending: false });
 
-  return <LeadsPageClient leads={leads ?? []} />;
+  return <LeadsPageClient leads={(leads ?? []) as unknown as Lead[]} />;
 }
