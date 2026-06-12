@@ -88,7 +88,7 @@ export default function ClaimTimeline({ history }: { history: HistoryEntry[] }) 
                 </div>
                 {entry.note && (
                   <p className="text-xs text-gray-600 mt-1 bg-gray-50 rounded-lg px-2.5 py-1.5 italic">
-                    "{entry.note}"
+                    &ldquo;{entry.note}&rdquo;
                   </p>
                 )}
               </div>

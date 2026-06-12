@@ -49,7 +49,7 @@ export default function PoolPageClient({
   const [filterArea, setFilterArea] = useState("semua");
   const [claimingPoiId, setClaimingPoiId] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const userClaimSet = useMemo(() => new Set(userClaimIds), [userClaimIds]);
   const isAtLimit = activeClaimCount >= 10;

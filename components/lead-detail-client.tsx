@@ -354,7 +354,7 @@ export default function LeadDetailClient({
               Nomor sudah ditandai invalid. Freelancer perlu update kontak dan kirim ulang.
             </p>
             {claim.fail_reason && (
-              <p className="text-xs text-orange-500 mt-1.5 italic">"{claim.fail_reason}"</p>
+              <p className="text-xs text-orange-500 mt-1.5 italic">&ldquo;{claim.fail_reason}&rdquo;</p>
             )}
           </div>
         )}
@@ -549,7 +549,7 @@ export default function LeadDetailClient({
           <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-4">
             <p className="text-sm font-semibold text-red-700">Kerjasama Declined</p>
             {claim.fail_reason && (
-              <p className="text-xs text-red-600 mt-1">"{claim.fail_reason}"</p>
+              <p className="text-xs text-red-600 mt-1">&ldquo;{claim.fail_reason}&rdquo;</p>
             )}
           </div>
         )}
