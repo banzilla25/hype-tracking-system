@@ -24,7 +24,9 @@ const TYPE_CONFIG: Record<string, { color: string; dot: string }> = {
   declined:          { color: "text-red-500",     dot: "bg-red-300" },
   campaign_jalan:    { color: "text-emerald-600", dot: "bg-emerald-400" },
   campaign_selesai:  { color: "text-gray-600",    dot: "bg-gray-400" },
-  auto_release:      { color: "text-orange-600",  dot: "bg-orange-400" },
+  auto_release:        { color: "text-orange-600",  dot: "bg-orange-400" },
+  new_poi_freelancer:  { color: "text-blue-600",    dot: "bg-blue-400" },
+  approached_poi:      { color: "text-emerald-600", dot: "bg-emerald-400" },
 };
 
 function timeAgo(dateStr: string) {

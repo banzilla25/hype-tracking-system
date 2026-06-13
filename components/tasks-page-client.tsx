@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 function timeAgo(dateStr: string): string {
   try {
@@ -52,6 +53,8 @@ function getStatusConfig(status: string) {
 }
 
 export default function TasksPageClient({ claims }: { claims: TaskClaim[] }) {
+  const router = useRouter();
+
   if (claims.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -60,14 +63,22 @@ export default function TasksPageClient({ claims }: { claims: TaskClaim[] }) {
         </div>
         <p className="text-sm font-medium text-gray-600">Belum ada tugas aktif</p>
         <p className="text-xs text-gray-400 mt-1">
-          Ambil POI dari pool untuk mulai bertugas
+          Ambil POI dari pool atau input yang sudah kamu approach
         </p>
-        <Link
-          href="/pool"
-          className="mt-4 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl"
-        >
-          Buka Pool POI →
-        </Link>
+        <div className="flex gap-2 mt-4">
+          <Link
+            href="/pool"
+            className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl"
+          >
+            Buka Pool →
+          </Link>
+          <Link
+            href="/tasks/new"
+            className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-xl"
+          >
+            Sudah Approach?
+          </Link>
+        </div>
       </div>
     );
   }
@@ -76,8 +87,18 @@ export default function TasksPageClient({ claims }: { claims: TaskClaim[] }) {
     <div className="flex flex-col h-[100dvh] max-w-lg mx-auto">
       {/* Header */}
       <div className="sticky top-0 bg-gray-50 z-10 px-4 pt-4 pb-3 border-b border-gray-200">
-        <h1 className="text-lg font-bold text-gray-900">Tugas Saya</h1>
-        <p className="text-xs text-gray-400 mt-0.5">{claims.length} tugas aktif</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Tugas Saya</h1>
+            <p className="text-xs text-gray-400 mt-0.5">{claims.length} tugas aktif</p>
+          </div>
+          <button
+            onClick={() => router.push("/tasks/new")}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-xl hover:bg-emerald-700"
+          >
+            + Sudah Approach?
+          </button>
+        </div>
       </div>
 
       {/* List */}

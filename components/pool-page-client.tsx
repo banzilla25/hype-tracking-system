@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import Link from "next/link";
 import { claimPoi } from "@/lib/actions/poi";
 
 type PoolPoi = {
@@ -107,7 +108,15 @@ export default function PoolPageClient({
       <div className="sticky top-0 bg-gray-50 z-10 px-4 pt-4 pb-3 border-b border-gray-200">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold text-gray-900">Pool POI</h1>
-          <SlotBadge active={activeClaimCount} max={10} />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/pool/add"
+              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700"
+            >
+              + Tambah POI
+            </Link>
+            <SlotBadge active={activeClaimCount} max={10} />
+          </div>
         </div>
 
         {/* Category filter pills */}

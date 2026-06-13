@@ -146,6 +146,267 @@ export async function uploadProofFile(
   return { fileId: inserted.file_id };
 }
 
+// ── Tambah POI ke Pool ────────────────────────────────────────────────────
+// Internal → POI langsung available (tidak di-claim)
+// Freelancer → POI di-claim otomatis oleh si penginput (in_progress)
+export async function addPoiToPool(
+  formData: FormData
+): Promise<{ error?: string; warning?: string; poiId?: string; claimId?: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, nickname")
+    .eq("id", user.id)
+    .single();
+  if (!profile) return { error: "Profil tidak ditemukan." };
+
+  const name      = (formData.get("name") as string)?.trim();
+  const category  = (formData.get("category") as string)?.trim();
+  const city      = (formData.get("city") as string)?.trim();
+  const area      = (formData.get("area") as string)?.trim();
+  const aovRaw    = formData.get("aov") as string;
+  const aov       = aovRaw ? parseInt(aovRaw, 10) : null;
+  const priorityTag = (formData.get("priority_tag") as string)?.trim() || null;
+  const force     = formData.get("force") === "true";
+
+  if (!name || !category || !city || !area)
+    return { error: "Nama, kategori, kota, dan area wajib diisi." };
+
+  // Cek duplikat
+  if (!force) {
+    const { data: similar } = await supabase
+      .from("pois")
+      .select("name, area, city")
+      .ilike("name", `%${name}%`)
+      .limit(3);
+    if (similar && similar.length > 0) {
+      const list = similar.map((p) => `${p.name} (${p.area})`).join(", ");
+      return { warning: `POI dengan nama serupa sudah ada: ${list}` };
+    }
+  }
+
+  const isInternal = profile.role === "internal";
+
+  // Cek limit slot untuk freelancer
+  if (!isInternal) {
+    const TERMINAL = ["gagal", "poi_mati", "declined", "campaign_selesai", "repeat_campaign"];
+    const { count } = await supabase
+      .from("claims")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .not("claim_status", "in", `(${TERMINAL.join(",")})`);
+    if ((count ?? 0) >= 10)
+      return { error: "Slot penuh. Selesaikan beberapa POI aktif dulu." };
+  }
+
+  const poiId = `poi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const poiStatus = isInternal ? "available" : "in_progress";
+
+  const { error: poiErr } = await supabase.from("pois").insert({
+    poi_id:          poiId,
+    name,
+    category,
+    city,
+    area,
+    aov:             aov && !isNaN(aov) ? aov : null,
+    priority_tag:    priorityTag,
+    source:          isInternal ? "internal" : "freelancer",
+    status:          poiStatus,
+    current_claim_id: null,
+  });
+  if (poiErr) return { error: "Gagal menyimpan POI. Coba lagi." };
+
+  if (isInternal) {
+    revalidatePath("/pool");
+    return { poiId };
+  }
+
+  // Freelancer: buat claim otomatis
+  const { data: claim, error: claimErr } = await supabase
+    .from("claims")
+    .insert({
+      poi_id:          poiId,
+      user_id:         user.id,
+      claim_status:    "in_progress",
+      last_activity_at: new Date().toISOString(),
+    })
+    .select("claim_id")
+    .single();
+
+  if (claimErr || !claim) {
+    await supabase.from("pois").delete().eq("poi_id", poiId);
+    return { error: "Gagal membuat klaim. Coba lagi." };
+  }
+
+  await supabase.from("pois").update({ current_claim_id: claim.claim_id }).eq("poi_id", poiId);
+
+  await supabase.from("status_history").insert({
+    poi_id:          poiId,
+    claim_id:        claim.claim_id,
+    from_status:     null,
+    to_status:       "in_progress",
+    changed_by:      user.id,
+    changed_by_role: "freelancer",
+    note:            "POI ditambahkan oleh freelancer ke pipeline",
+  });
+
+  // Notif ke semua internal
+  try {
+    const { data: internals } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "internal");
+    if (internals && internals.length > 0) {
+      await supabase.from("notifications").insert(
+        internals.map((u) => ({
+          user_id:  u.id,
+          claim_id: claim.claim_id,
+          poi_id:   poiId,
+          type:     "new_poi_freelancer",
+          message:  `${profile.nickname} menambahkan POI baru: ${name} (${area}, ${city})`,
+        }))
+      );
+    }
+  } catch { /* notif gagal tidak block flow */ }
+
+  revalidatePath("/tasks");
+  revalidatePath("/pool");
+  return { claimId: claim.claim_id };
+}
+
+// ── Tambah POI yang sudah di-approach freelancer ──────────────────────────
+export async function addApproachedPoi(
+  formData: FormData
+): Promise<{ error?: string; warning?: string; claimId?: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, nickname")
+    .eq("id", user.id)
+    .single();
+  if (!profile || profile.role !== "freelancer")
+    return { error: "Fitur ini hanya untuk freelancer." };
+
+  const name          = (formData.get("name") as string)?.trim();
+  const category      = (formData.get("category") as string)?.trim();
+  const city          = (formData.get("city") as string)?.trim();
+  const area          = (formData.get("area") as string)?.trim();
+  const picName       = (formData.get("pic_name") as string)?.trim();
+  const waNumber      = (formData.get("wa_number") as string)?.trim();
+  const picPosition   = (formData.get("pic_position") as string)?.trim() || null;
+  const initialStatus = (formData.get("initial_status") as string) ?? "in_progress";
+  const note          = (formData.get("note") as string)?.trim() || null;
+  const aovRaw        = formData.get("aov") as string;
+  const aov           = aovRaw ? parseInt(aovRaw, 10) : null;
+  const priorityTag   = (formData.get("priority_tag") as string)?.trim() || null;
+  const force         = formData.get("force") === "true";
+
+  if (!name || !category || !city || !area || !picName || !waNumber)
+    return { error: "Nama, kategori, kota, area, nama PIC, dan nomor WA wajib diisi." };
+
+  if (!["in_progress", "semi_dealing"].includes(initialStatus))
+    return { error: "Status awal tidak valid." };
+
+  // Cek limit slot
+  const TERMINAL = ["gagal", "poi_mati", "declined", "campaign_selesai", "repeat_campaign"];
+  const { count } = await supabase
+    .from("claims")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .not("claim_status", "in", `(${TERMINAL.join(",")})`);
+  if ((count ?? 0) >= 10)
+    return { error: "Slot penuh. Selesaikan beberapa POI aktif dulu." };
+
+  // Cek duplikat
+  if (!force) {
+    const { data: similar } = await supabase
+      .from("pois")
+      .select("name, area, city")
+      .ilike("name", `%${name}%`)
+      .limit(3);
+    if (similar && similar.length > 0) {
+      const list = similar.map((p) => `${p.name} (${p.area})`).join(", ");
+      return { warning: `POI dengan nama serupa sudah ada: ${list}` };
+    }
+  }
+
+  const poiId = `poi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const { error: poiErr } = await supabase.from("pois").insert({
+    poi_id:          poiId,
+    name,
+    category,
+    city,
+    area,
+    aov:             aov && !isNaN(aov) ? aov : null,
+    priority_tag:    priorityTag,
+    source:          "freelancer",
+    status:          initialStatus,
+    current_claim_id: null,
+  });
+  if (poiErr) return { error: "Gagal menyimpan POI. Coba lagi." };
+
+  const { data: claim, error: claimErr } = await supabase
+    .from("claims")
+    .insert({
+      poi_id:          poiId,
+      user_id:         user.id,
+      claim_status:    initialStatus,
+      pic_name:        picName,
+      wa_number:       waNumber,
+      pic_position:    picPosition,
+      last_activity_at: new Date().toISOString(),
+    })
+    .select("claim_id")
+    .single();
+
+  if (claimErr || !claim) {
+    await supabase.from("pois").delete().eq("poi_id", poiId);
+    return { error: "Gagal membuat klaim. Coba lagi." };
+  }
+
+  await supabase.from("pois").update({ current_claim_id: claim.claim_id }).eq("poi_id", poiId);
+
+  await supabase.from("status_history").insert({
+    poi_id:          poiId,
+    claim_id:        claim.claim_id,
+    from_status:     null,
+    to_status:       initialStatus,
+    changed_by:      user.id,
+    changed_by_role: "freelancer",
+    note:            note ?? "POI diinput langsung oleh freelancer yang sudah approach",
+  });
+
+  // Notif ke internal
+  try {
+    const { data: internals } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "internal");
+    if (internals && internals.length > 0) {
+      const statusLabel = initialStatus === "semi_dealing" ? "sudah semi-deal" : "sedang diproses";
+      await supabase.from("notifications").insert(
+        internals.map((u) => ({
+          user_id:  u.id,
+          claim_id: claim.claim_id,
+          poi_id:   poiId,
+          type:     "approached_poi",
+          message:  `${profile.nickname} input POI ${statusLabel}: ${name} (${area}, ${city}). PIC: ${picName} — ${waNumber}`,
+        }))
+      );
+    }
+  } catch { /* notif gagal tidak block flow */ }
+
+  revalidatePath("/tasks");
+  return { claimId: claim.claim_id };
+}
+
 // ── Hapus file bukti ──────────────────────────────────────────────────────
 export async function deleteProofFile(
   fileId: number,
