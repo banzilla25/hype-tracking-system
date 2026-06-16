@@ -110,7 +110,7 @@ type ActiveForm = "invalid" | "decline" | "approve" | "koordinasi" | "videos" | 
 // ── Main component ─────────────────────────────────────────────────────────
 
 const NOTE_ALLOWED_STATUSES_INTERNAL = [
-  "fiksasi_kerjasama", "koordinasi_kreator", "campaign_selesai",
+  "fiksasi_kerjasama", "disetujui_diklaim", "koordinasi_kreator", "campaign_selesai",
 ];
 
 export default function LeadDetailClient({
