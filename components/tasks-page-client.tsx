@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { categoryLabel } from "@/lib/category-labels";
 
 function timeAgo(dateStr: string): string {
   try {
@@ -131,8 +132,8 @@ function TaskCard({ claim }: { claim: TaskClaim }) {
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap mb-1">
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase">
-                {poi?.category ?? "—"}
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                {poi?.category ? categoryLabel(poi.category) : "—"}
               </span>
               {poi?.is_undersupplied && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">

@@ -17,6 +17,7 @@ import {
 } from "@/lib/actions/leads";
 import ClaimTimeline from "@/components/claim-timeline";
 import NotesSection from "@/components/notes-section";
+import { categoryLabel } from "@/lib/category-labels";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -184,8 +185,8 @@ export default function LeadDetailClient({
         {/* POI info */}
         <div className="bg-white rounded-2xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase">
-              {poi.category}
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+              {categoryLabel(poi.category)}
             </span>
             {poi.source === "internal" && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">

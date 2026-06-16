@@ -1,0 +1,4 @@
+poi_id,name,category,city,area,aov,is_undersupplied,priority_tag,source,source_campaign,latitude,longitude,full_address
+TK-001,Warung Makan Pak Budi,fnb,Jakarta,Kemang,150000,false,,freelancer,,,,-6.261493,106.813000,Jl. Kemang Raya No. 12
+TK-002,Hotel Santika Premiere,hotel,Surabaya,Gubeng,800000,true,VIP,internal,Campaign Q3,,,-7.265690,112.752800,Jl. Pemuda No. 45
+TK-003,Wisata Alam Gunung Batur,ttd,Bali,Kintamani,250000,false,Alam,,,,,-8.242116,115.374000,

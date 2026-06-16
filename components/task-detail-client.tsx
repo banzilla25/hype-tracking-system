@@ -12,6 +12,7 @@ import {
 import ClaimTimeline from "@/components/claim-timeline";
 import NotesSection from "@/components/notes-section";
 import { compressImage } from "@/lib/utils/compress-image";
+import { categoryLabel } from "@/lib/category-labels";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -252,8 +253,8 @@ export default function TaskDetailClient({
         {/* POI card */}
         <div className="bg-white rounded-2xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase">
-              {poi.category}
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+              {categoryLabel(poi.category)}
             </span>
             {poi.is_undersupplied && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">

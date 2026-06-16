@@ -8,7 +8,7 @@ import { useTransition } from "react";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: ChartIcon },
   { href: "/leads", label: "Antrian Leads", icon: InboxIcon },
-  { href: "/leads/add", label: "Sourcing F&B", icon: PlusCircleIcon },
+  { href: "/leads/add", label: "Sourcing POI Mandiri", icon: PlusCircleIcon },
   { href: "/pool/add", label: "Tambah ke Pool", icon: PoolAddIcon },
   { href: "/approve", label: "Approve Akun", icon: CheckCircleIcon },
   { href: "/import", label: "Import POI", icon: UploadIcon },

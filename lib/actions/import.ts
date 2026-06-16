@@ -3,148 +3,187 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-// Kolom wajib
-const REQUIRED = ["poi_id", "name", "category", "city", "area"];
-const TERMINAL_STATUSES = ["gagal", "poi_mati", "declined", "campaign_selesai", "repeat_campaign"];
+// Kolom yang benar-benar wajib ada
+const REQUIRED_COLS = ["poi_id", "city", "area"];
 
-// Parser CSV sederhana yang handle field dengan quote
+// Alias header → nama kolom internal (case-insensitive, sudah di-lowercase sebelum lookup)
+const HEADER_ALIASES: Record<string, string> = {
+  poi_name: "name",
+  nama:     "name",
+  kota:     "city",
+  wilayah:  "area",
+  kawasan:  "area",
+};
+
+export type PoiRow = {
+  poi_id: string;
+  name: string;
+  category: string;
+  city: string;
+  area: string;
+  aov: number | null;
+  is_undersupplied: boolean | null;
+  priority_tag: string | null;
+  source: string;
+  source_campaign: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  full_address: string | null;
+  status: "available";
+};
+
+export type PreviewResult = {
+  valid: PoiRow[];
+  errors: string[];
+  totalRows: number;
+};
+
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
-
   for (const char of line) {
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      result.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
+    if (char === '"') { inQuotes = !inQuotes; }
+    else if (char === "," && !inQuotes) { result.push(current.trim()); current = ""; }
+    else { current += char; }
   }
   result.push(current.trim());
   return result;
 }
 
-export async function importPoisFromCsv(
+// ── Step 1: Parse CSV → preview (tidak menyimpan ke DB) ──────────────────
+export async function previewImportCsv(
   formData: FormData
-): Promise<{ imported: number; skipped: number; errors: string[] }> {
+): Promise<PreviewResult | { error: string }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const file = formData.get("csv_file") as File | null;
-  if (!file) return { imported: 0, skipped: 0, errors: ["File tidak ditemukan"] };
+  if (!file) return { error: "File tidak ditemukan" };
+  if (file.size > 50 * 1024 * 1024) return { error: "Ukuran file maks 50 MB" };
 
   const text = await file.text();
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return { imported: 0, skipped: 0, errors: ["File kosong atau hanya ada header"] };
+  if (lines.length < 2) return { error: "File kosong atau hanya ada header" };
 
-  // Parse header
-  const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
-  for (const req of REQUIRED) {
-    if (!headers.includes(req)) {
-      return {
-        imported: 0,
-        skipped: 0,
-        errors: [`Kolom wajib tidak ditemukan: ${req}`],
-      };
-    }
+  // Normalisasi header: lowercase lalu resolve alias
+  const headers = parseCSVLine(lines[0]).map((h) => {
+    const lower = h.toLowerCase().trim();
+    return HEADER_ALIASES[lower] ?? lower;
+  });
+
+  for (const req of REQUIRED_COLS) {
+    if (!headers.includes(req))
+      return { error: `Kolom wajib tidak ditemukan: "${req}". File harus memiliki kolom poi_id, city, dan area.` };
   }
+  if (!headers.includes("name"))
+    return { error: `Kolom nama tidak ditemukan. Tambahkan kolom "name" atau "poi_name".` };
 
-  const get = (row: string[], col: string): string =>
-    row[headers.indexOf(col)]?.trim() ?? "";
+  const get = (row: string[], col: string): string => {
+    const idx = headers.indexOf(col);
+    return idx >= 0 ? (row[idx]?.trim() ?? "") : "";
+  };
 
-  // Parse setiap baris
-  const parsedPois: Record<string, unknown>[] = [];
-  const rowErrors: string[] = [];
+  const valid: PoiRow[] = [];
+  const errors: string[] = [];
 
   for (let i = 1; i < lines.length; i++) {
     const row = parseCSVLine(lines[i]);
     const poiId = get(row, "poi_id");
-    const name = get(row, "name");
-    const category = get(row, "category");
-    const city = get(row, "city");
-    const area = get(row, "area");
+    const name  = get(row, "name");
+    const city  = get(row, "city");
+    const area  = get(row, "area");
 
-    if (!poiId || !name || !category || !city || !area) {
-      rowErrors.push(`Baris ${i + 1}: kolom wajib kosong (poi_id/name/category/city/area)`);
+    if (!poiId || !name || !city || !area) {
+      errors.push(`Baris ${i + 1}: kolom wajib kosong (poi_id / name / city / area)`);
+      continue;
+    }
+
+    const rawSource = get(row, "source");
+    const source = rawSource || "internal";
+    if (rawSource && !["freelancer", "internal"].includes(rawSource)) {
+      errors.push(`Baris ${i + 1}: source tidak valid "${rawSource}" — gunakan 'freelancer' atau 'internal'`);
       continue;
     }
 
     const aovStr = get(row, "aov");
-    const aov = aovStr ? parseFloat(aovStr) : null;
+    const aov    = aovStr ? parseFloat(aovStr) : null;
 
-    const isUndersuppliedStr = get(row, "is_undersupplied").toLowerCase();
+    const isUStr = get(row, "is_undersupplied").toLowerCase();
     const isUndersupplied =
-      isUndersuppliedStr === "true" || isUndersuppliedStr === "1" || isUndersuppliedStr === "ya"
-        ? true
-        : isUndersuppliedStr === "false" || isUndersuppliedStr === "0" || isUndersuppliedStr === "tidak"
-        ? false
-        : null;
+      ["true", "1", "ya"].includes(isUStr)    ? true
+      : ["false", "0", "tidak"].includes(isUStr) ? false
+      : null;
 
-    const source = get(row, "source") || "freelancer";
-    if (source !== "freelancer" && source !== "internal") {
-      rowErrors.push(`Baris ${i + 1}: source harus 'freelancer' atau 'internal'`);
-      continue;
-    }
+    const latStr = get(row, "latitude");
+    const lngStr = get(row, "longitude");
+    const lat    = latStr ? parseFloat(latStr) : null;
+    const lng    = lngStr ? parseFloat(lngStr) : null;
 
-    parsedPois.push({
-      poi_id: poiId,
+    const rawCategory = get(row, "category").toLowerCase();
+
+    valid.push({
+      poi_id:           poiId,
       name,
-      category: category.toLowerCase(),
+      category:         rawCategory || "lainnya",
       city,
       area,
-      aov: isNaN(aov as number) ? null : aov,
+      aov:              aov && !isNaN(aov) ? aov : null,
       is_undersupplied: isUndersupplied,
-      priority_tag: get(row, "priority_tag") || null,
+      priority_tag:     get(row, "priority_tag") || null,
       source,
-      source_campaign: get(row, "source_campaign") || null,
-      latitude: get(row, "latitude") ? parseFloat(get(row, "latitude")) : null,
-      longitude: get(row, "longitude") ? parseFloat(get(row, "longitude")) : null,
-      full_address: get(row, "full_address") || null,
-      status: "available",
+      source_campaign:  get(row, "source_campaign") || null,
+      latitude:         lat && !isNaN(lat) ? lat : null,
+      longitude:        lng && !isNaN(lng) ? lng : null,
+      full_address:     get(row, "full_address") || null,
+      status:           "available",
     });
   }
 
-  if (!parsedPois.length) {
-    return { imported: 0, skipped: 0, errors: rowErrors };
-  }
+  return { valid, errors, totalRows: lines.length - 1 };
+}
 
-  // Cek yang sudah ada di database (dedup by poi_id)
-  const allPoiIds = parsedPois.map((p) => p.poi_id as string);
-  const { data: existing } = await supabase
-    .from("pois")
-    .select("poi_id")
-    .in("poi_id", allPoiIds);
+// ── Step 2: Konfirmasi import — upsert dengan ignoreDuplicates ────────────
+// Duplikat (poi_id yang sudah ada) dilewati otomatis oleh DB.
+// Return: jumlah yang benar-benar di-insert vs total dikirim.
+export async function confirmImportPois(
+  pois: PoiRow[]
+): Promise<{ imported: number; skipped: number; errors: string[] }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  const existingIds = new Set(existing?.map((e) => e.poi_id) ?? []);
-  const newPois = parsedPois.filter((p) => !existingIds.has(p.poi_id as string));
-  const skippedCount = parsedPois.length - newPois.length;
+  if (!pois.length) return { imported: 0, skipped: 0, errors: ["Tidak ada data untuk diimpor"] };
 
-  if (!newPois.length) {
-    return { imported: 0, skipped: skippedCount, errors: rowErrors };
-  }
+  const BATCH = 500;
+  let inserted = 0;
+  const errors: string[] = [];
 
-  // Insert dalam batch 500 per request
-  const BATCH_SIZE = 500;
-  let insertedCount = 0;
+  for (let i = 0; i < pois.length; i += BATCH) {
+    const batch = pois.slice(i, i + BATCH);
+    const { data, error } = await supabase
+      .from("pois")
+      .upsert(batch, { onConflict: "poi_id", ignoreDuplicates: true })
+      .select("poi_id");
 
-  for (let i = 0; i < newPois.length; i += BATCH_SIZE) {
-    const batch = newPois.slice(i, i + BATCH_SIZE);
-    const { error: insertError } = await supabase.from("pois").insert(batch);
-    if (insertError) {
-      rowErrors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: gagal insert — ${insertError.message}`);
+    if (error) {
+      errors.push(`Batch ${Math.floor(i / BATCH) + 1}: ${error.message}`);
     } else {
-      insertedCount += batch.length;
+      inserted += data?.length ?? 0;
     }
   }
 
-  return { imported: insertedCount, skipped: skippedCount, errors: rowErrors };
+  const skipped = pois.length - inserted;
+  return { imported: inserted, skipped, errors };
 }
 
-// Tidak dipakai tapi export untuk referensi
-export { TERMINAL_STATUSES };
+// legacy compat
+export async function importPoisFromCsv(
+  formData: FormData
+): Promise<{ imported: number; skipped: number; errors: string[] }> {
+  const preview = await previewImportCsv(formData);
+  if ("error" in preview) return { imported: 0, skipped: 0, errors: [preview.error] };
+  const result = await confirmImportPois(preview.valid);
+  return { imported: result.imported, skipped: result.skipped, errors: [...preview.errors, ...result.errors] };
+}

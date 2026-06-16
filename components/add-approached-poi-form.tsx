@@ -3,8 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addApproachedPoi } from "@/lib/actions/poi";
-
-const CATEGORIES = ["fnb", "hotel", "ttd", "attraction"];
+import { CATEGORY_OPTIONS } from "@/lib/category-labels";
 
 export default function AddApproachedPoiForm() {
   const router = useRouter();
@@ -91,8 +90,8 @@ export default function AddApproachedPoiForm() {
             className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Pilih kategori...</option>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{cat.toUpperCase()}</option>
+            {CATEGORY_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </div>

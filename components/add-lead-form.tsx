@@ -3,8 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { sourcePoiInternal } from "@/lib/actions/leads";
-
-const CATEGORIES = ["hotel", "fnb", "ttd", "attraction"];
+import { CATEGORY_OPTIONS } from "@/lib/category-labels";
 
 export default function AddLeadForm() {
   const router = useRouter();
@@ -48,8 +47,8 @@ export default function AddLeadForm() {
             className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Pilih kategori...</option>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{cat.toUpperCase()}</option>
+            {CATEGORY_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </div>

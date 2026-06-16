@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { claimPoi } from "@/lib/actions/poi";
+import { categoryLabel } from "@/lib/category-labels";
 
 type PoolPoi = {
   poi_id: string;
@@ -131,7 +132,7 @@ export default function PoolPageClient({
                   : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
-              {cat === "semua" ? "Semua" : cat.toUpperCase()}
+              {cat === "semua" ? "Semua" : categoryLabel(cat)}
             </button>
           ))}
         </div>
@@ -239,7 +240,7 @@ function PoiCard({
             poi.category
           )}`}
         >
-          {poi.category}
+          {categoryLabel(poi.category)}
         </span>
         {poi.is_undersupplied && (
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
