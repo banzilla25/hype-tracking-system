@@ -13,6 +13,7 @@ import {
   startCampaign,
   completeCampaign,
   updateCampaignVideos,
+  repeatCampaign,
 } from "@/lib/actions/leads";
 import ClaimTimeline from "@/components/claim-timeline";
 import NotesSection from "@/components/notes-section";
@@ -92,7 +93,8 @@ const STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   disetujui_diklaim:  { label: "Disetujui",       badgeClass: "bg-teal-100 text-teal-700" },
   koordinasi_kreator: { label: "Koordinasi",      badgeClass: "bg-cyan-100 text-cyan-700" },
   campaign_jalan:     { label: "Campaign Jalan",  badgeClass: "bg-emerald-100 text-emerald-700" },
-  campaign_selesai:   { label: "Selesai",         badgeClass: "bg-gray-100 text-gray-600" },
+  campaign_selesai:   { label: "Selesai",          badgeClass: "bg-gray-100 text-gray-600" },
+  repeat_campaign:    { label: "Repeat Campaign", badgeClass: "bg-blue-100 text-blue-700" },
   declined:           { label: "Declined",        badgeClass: "bg-red-100 text-red-700" },
 };
 
@@ -533,14 +535,30 @@ export default function LeadDetailClient({
 
         {/* CAMPAIGN_SELESAI */}
         {claim.claim_status === "campaign_selesai" && (
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-center">
-            <p className="text-sm font-semibold text-gray-700">✓ Campaign Selesai</p>
-            <p className="text-xs text-gray-500 mt-1">
-              {(claim.campaign_uploaded_videos ?? 0)} dari {claim.campaign_target_videos ?? 0} video terupload.
+          <>
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-center">
+              <p className="text-sm font-semibold text-gray-700">✓ Campaign Selesai</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {(claim.campaign_uploaded_videos ?? 0)} dari {claim.campaign_target_videos ?? 0} video terupload.
+              </p>
+              {claim.completed_at && (
+                <p className="text-xs text-gray-400 mt-1">{formatDate(claim.completed_at)}</p>
+              )}
+            </div>
+            <RepeatCampaignButton
+              isPending={isPending}
+              onConfirm={() => doAction(() => repeatCampaign(claim.claim_id))}
+            />
+          </>
+        )}
+
+        {/* REPEAT_CAMPAIGN */}
+        {claim.claim_status === "repeat_campaign" && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-4 text-center">
+            <p className="text-sm font-semibold text-blue-700">🔁 Repeat Campaign</p>
+            <p className="text-xs text-blue-600 mt-1">
+              Merchant ini sedang menjalani campaign periode baru.
             </p>
-            {claim.completed_at && (
-              <p className="text-xs text-gray-400 mt-1">{formatDate(claim.completed_at)}</p>
-            )}
           </div>
         )}
 
@@ -692,6 +710,48 @@ function CampaignSelesaiButton({
       className="w-full py-3.5 bg-gray-700 text-white text-sm font-semibold rounded-2xl hover:bg-gray-800 disabled:opacity-40 transition-colors"
     >
       Tandai Campaign Selesai ✓
+    </button>
+  );
+}
+
+function RepeatCampaignButton({
+  isPending, onConfirm,
+}: {
+  isPending: boolean; onConfirm: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
+        <p className="text-sm font-medium text-gray-800">Tandai sebagai Repeat Campaign?</p>
+        <p className="text-xs text-gray-500">
+          Merchant akan diaktivasi untuk campaign periode baru. Aksi ini tidak bisa dibatalkan.
+        </p>
+        <div className="flex gap-2">
+          <button onClick={() => setConfirming(false)}
+            className="flex-1 py-2.5 border border-gray-200 text-sm text-gray-600 rounded-xl hover:bg-gray-50">
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isPending}
+            className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-40"
+          >
+            {isPending ? "..." : "Ya, Repeat Campaign 🔁"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setConfirming(true)}
+      disabled={isPending}
+      className="w-full py-3.5 bg-blue-600 text-white text-sm font-semibold rounded-2xl hover:bg-blue-700 disabled:opacity-40 transition-colors"
+    >
+      🔁 Tandai Repeat Campaign
     </button>
   );
 }

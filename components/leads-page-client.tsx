@@ -28,11 +28,13 @@ const STATUS_CONFIG: Record<string, { label: string; badgeClass: string; priorit
   disetujui_diklaim:  { label: "Disetujui",        badgeClass: "bg-teal-100 text-teal-700",       priority: 4 },
   koordinasi_kreator: { label: "Koordinasi",       badgeClass: "bg-cyan-100 text-cyan-700",       priority: 5 },
   campaign_jalan:     { label: "Campaign Jalan",   badgeClass: "bg-emerald-100 text-emerald-700", priority: 6 },
+  campaign_selesai:   { label: "Selesai",           badgeClass: "bg-gray-100 text-gray-500",       priority: 7 },
 };
 
 const STAGE_ORDER = [
   "submitted", "validasi_nomor", "nomor_invalid",
   "fiksasi_kerjasama", "disetujui_diklaim", "koordinasi_kreator", "campaign_jalan",
+  "campaign_selesai",
 ];
 
 function timeAgo(dateStr: string): string {

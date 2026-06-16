@@ -10,6 +10,7 @@ const FASE2_STATUSES = [
   "disetujui_diklaim",
   "koordinasi_kreator",
   "campaign_jalan",
+  "campaign_selesai",
 ];
 
 export default async function LeadsPage() {

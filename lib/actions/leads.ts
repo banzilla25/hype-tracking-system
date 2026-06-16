@@ -145,6 +145,17 @@ export async function completeCampaign(claimId: number): Promise<{ error?: strin
   return res;
 }
 
+// ── Repeat campaign (campaign_selesai → repeat_campaign) ─────────────────
+export async function repeatCampaign(claimId: number): Promise<{ error?: string }> {
+  await requireInternal();
+  const res = await transitionStatus(claimId, "repeat_campaign");
+  if (!res.error) {
+    revalidatePath("/leads");
+    revalidatePath(`/leads/${claimId}`);
+  }
+  return res;
+}
+
 // ── Update jumlah video campaign (tanpa ubah status) ─────────────────────
 export async function updateCampaignVideos(
   claimId: number,
