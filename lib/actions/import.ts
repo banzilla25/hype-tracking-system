@@ -32,10 +32,22 @@ export type PoiRow = {
   status: "available";
 };
 
+export type ImportSummary = {
+  totalRows: number;
+  validCount: number;
+  errorCount: number;
+  byCategory: Record<string, number>;
+  byCity: Record<string, number>;
+  bySource: Record<string, number>;
+  withAov: number;
+  missingCategory: number;
+};
+
 export type PreviewResult = {
   valid: PoiRow[];
   errors: string[];
   totalRows: number;
+  summary: ImportSummary;
 };
 
 function parseCSVLine(line: string): string[] {
@@ -141,7 +153,33 @@ export async function previewImportCsv(
     });
   }
 
-  return { valid, errors, totalRows: lines.length - 1 };
+  // Hitung summary
+  const byCategory: Record<string, number> = {};
+  const byCity: Record<string, number> = {};
+  const bySource: Record<string, number> = {};
+  let withAov = 0;
+  let missingCategory = 0;
+
+  for (const row of valid) {
+    byCategory[row.category] = (byCategory[row.category] ?? 0) + 1;
+    byCity[row.city] = (byCity[row.city] ?? 0) + 1;
+    bySource[row.source] = (bySource[row.source] ?? 0) + 1;
+    if (row.aov) withAov++;
+    if (row.category === "lainnya") missingCategory++;
+  }
+
+  const summary: ImportSummary = {
+    totalRows: lines.length - 1,
+    validCount: valid.length,
+    errorCount: errors.length,
+    byCategory,
+    byCity,
+    bySource,
+    withAov,
+    missingCategory,
+  };
+
+  return { valid, errors, totalRows: lines.length - 1, summary };
 }
 
 // ── Step 2: Konfirmasi import — upsert dengan ignoreDuplicates ────────────

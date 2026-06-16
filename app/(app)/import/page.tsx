@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { previewImportCsv, confirmImportPois, type PoiRow, type PreviewResult } from "@/lib/actions/import";
+import { previewImportCsv, confirmImportPois, type PreviewResult } from "@/lib/actions/import";
+import { categoryLabel } from "@/lib/category-labels";
 
 type Step = "upload" | "preview" | "done";
 
@@ -154,45 +155,139 @@ export default function ImportPage() {
 
       {/* ── Step 2: Preview ─────────────────────────────────────────────── */}
       {step === "preview" && preview && (
-        <div className="space-y-5">
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard label="Siap Diimpor" value={preview.valid.length} color="green" />
-            <StatCard label="Baris Error" value={preview.errors.length} color={preview.errors.length > 0 ? "red" : "gray"} />
-          </div>
+        <div className="space-y-4">
 
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
-            <p className="text-xs text-blue-700">
-              Duplikat (poi_id yang sudah ada di database) akan dilewati secara otomatis saat konfirmasi — tidak perlu dicek manual.
-            </p>
-          </div>
-
-          {/* Row errors */}
-          {preview.errors.length > 0 && (
-            <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
-              <p className="text-xs font-semibold text-red-700 mb-2">
-                {preview.errors.length} baris tidak valid:
+          {/* ── Ringkasan utama ── */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Ringkasan File</p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <StatCard label="Total Baris" value={preview.summary.totalRows} color="gray" />
+              <StatCard label="Siap Diimpor" value={preview.summary.validCount} color="green" />
+              <StatCard label="Baris Error" value={preview.summary.errorCount} color={preview.summary.errorCount > 0 ? "red" : "gray"} />
+            </div>
+            <div className="bg-blue-50 rounded-xl px-3 py-2">
+              <p className="text-xs text-blue-700">
+                Duplikat (poi_id yang sudah ada) akan dilewati otomatis — tidak perlu dicek manual.
               </p>
-              <ul className="space-y-0.5 max-h-36 overflow-auto">
-                {preview.errors.map((err, i) => (
-                  <li key={i} className="text-xs text-red-600">· {err}</li>
-                ))}
-              </ul>
+            </div>
+          </div>
+
+          {/* ── Distribusi data ── */}
+          {preview.valid.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Distribusi Data</p>
+
+              {/* Per kategori */}
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-2">Kategori</p>
+                <div className="space-y-1.5">
+                  {Object.entries(preview.summary.byCategory)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, count]) => (
+                      <div key={cat} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 w-28 shrink-0">{categoryLabel(cat)}</span>
+                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-400 rounded-full"
+                            style={{ width: `${(count / preview.summary.validCount) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-gray-700 w-8 text-right">{count}</span>
+                      </div>
+                    ))}
+                </div>
+                {preview.summary.missingCategory > 0 && (
+                  <p className="text-[11px] text-amber-600 mt-1.5">
+                    ⚠ {preview.summary.missingCategory} baris tidak punya kategori → akan diisi &quot;lainnya&quot;
+                  </p>
+                )}
+              </div>
+
+              {/* Per kota — top 5 */}
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-2">
+                  Kota {Object.keys(preview.summary.byCity).length > 5 && `(top 5 dari ${Object.keys(preview.summary.byCity).length})`}
+                </p>
+                <div className="space-y-1.5">
+                  {Object.entries(preview.summary.byCity)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([city, count]) => (
+                      <div key={city} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 w-28 shrink-0 truncate">{city}</span>
+                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-400 rounded-full"
+                            style={{ width: `${(count / preview.summary.validCount) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-gray-700 w-8 text-right">{count}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Source & kelengkapan */}
+              <div className="grid grid-cols-2 gap-3 pt-1 border-t border-gray-100">
+                <div>
+                  <p className="text-[11px] font-medium text-gray-500 mb-1">Source</p>
+                  {Object.entries(preview.summary.bySource).map(([src, n]) => (
+                    <p key={src} className="text-xs text-gray-700">
+                      <span className="font-semibold">{n}</span> {src}
+                    </p>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-gray-500 mb-1">Kelengkapan</p>
+                  <p className="text-xs text-gray-700">
+                    <span className="font-semibold">{preview.summary.withAov}</span> punya AOV
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {preview.summary.validCount - preview.summary.withAov} tanpa AOV
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Preview table */}
-          {preview.valid.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-2">
-                Preview {Math.min(preview.valid.length, 5)} dari {preview.valid.length} baris yang akan diimpor:
+          {/* ── Error detail ── */}
+          {preview.errors.length > 0 && (
+            <div className="bg-white rounded-2xl border border-red-100 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center text-red-600 text-[11px] font-bold shrink-0">!</span>
+                <p className="text-sm font-semibold text-red-700">
+                  {preview.errors.length} baris tidak akan diimpor
+                </p>
+              </div>
+              <p className="text-xs text-red-500 mb-2">
+                Baris-baris ini punya masalah dan dilewati. Perbaiki di file CSV lalu upload ulang jika perlu.
               </p>
-              <div className="overflow-x-auto rounded-2xl border border-gray-100">
+              <div className="bg-red-50 rounded-xl p-3 max-h-48 overflow-auto space-y-1.5">
+                {preview.errors.map((err, i) => (
+                  <div key={i} className="flex gap-2 text-xs text-red-700">
+                    <span className="shrink-0 font-mono text-red-400">{String(i + 1).padStart(2, "0")}.</span>
+                    <span>{err}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-red-400 mt-2">
+                Tip: buka file CSV di Excel/Sheets, cek kolom yang disebutkan di tiap error di atas.
+              </p>
+            </div>
+          )}
+
+          {/* ── Preview tabel 5 baris ── */}
+          {preview.valid.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Contoh Data ({Math.min(preview.valid.length, 5)} dari {preview.valid.length} baris)
+              </p>
+              <div className="overflow-x-auto rounded-xl border border-gray-100">
                 <table className="min-w-full text-xs">
                   <thead className="bg-gray-50">
                     <tr>
-                      {["poi_id", "name", "category", "city", "area", "source"].map((h) => (
-                        <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                      {["poi_id", "name", "kategori", "kota", "area", "source"].map((h) => (
+                        <th key={h} className="px-3 py-2 text-left font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                           {h}
                         </th>
                       ))}
@@ -201,9 +296,9 @@ export default function ImportPage() {
                   <tbody className="divide-y divide-gray-50 bg-white">
                     {preview.valid.slice(0, 5).map((row, i) => (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-mono text-gray-600 whitespace-nowrap">{row.poi_id}</td>
-                        <td className="px-3 py-2 text-gray-900 max-w-45 truncate">{row.name}</td>
-                        <td className="px-3 py-2 text-gray-600">{row.category}</td>
+                        <td className="px-3 py-2 font-mono text-gray-500 whitespace-nowrap">{row.poi_id}</td>
+                        <td className="px-3 py-2 text-gray-900 max-w-45 truncate font-medium">{row.name}</td>
+                        <td className="px-3 py-2 text-gray-600">{categoryLabel(row.category)}</td>
                         <td className="px-3 py-2 text-gray-600">{row.city}</td>
                         <td className="px-3 py-2 text-gray-600">{row.area}</td>
                         <td className="px-3 py-2 text-gray-600">{row.source}</td>
@@ -211,8 +306,8 @@ export default function ImportPage() {
                     ))}
                     {preview.valid.length > 5 && (
                       <tr>
-                        <td colSpan={6} className="px-3 py-2 text-center text-gray-400">
-                          + {preview.valid.length - 5} baris lainnya
+                        <td colSpan={6} className="px-3 py-2.5 text-center text-gray-400 bg-gray-50">
+                          + {preview.valid.length - 5} baris lainnya tidak ditampilkan
                         </td>
                       </tr>
                     )}
@@ -222,27 +317,37 @@ export default function ImportPage() {
             </div>
           )}
 
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-1">
-            <button
-              onClick={handleReset}
-              disabled={isPending}
-              className="flex-1 px-4 py-3 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors font-medium"
-            >
-              Kembali
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={isPending || preview.valid.length === 0}
-              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {isPending ? (
-                <><SpinnerIcon /> Menyimpan...</>
-              ) : (
-                <>Konfirmasi Import {preview.valid.length} POI</>
-              )}
-            </button>
+          {/* ── Konfirmasi ── */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+            <p className="text-sm font-semibold text-emerald-800 mb-1">
+              Sudah yakin dengan data di atas?
+            </p>
+            <p className="text-xs text-emerald-700 mb-4">
+              Setelah dikonfirmasi, <strong>{preview.valid.length} POI</strong> akan masuk ke pool dengan status <strong>available</strong>.
+              {preview.errors.length > 0 && ` ${preview.errors.length} baris bermasalah tidak akan diimpor.`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleReset}
+                disabled={isPending}
+                className="flex-1 px-4 py-2.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors font-medium"
+              >
+                Kembali & Perbaiki
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={isPending || preview.valid.length === 0}
+                className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {isPending ? (
+                  <><SpinnerIcon /> Menyimpan...</>
+                ) : (
+                  <>Import {preview.valid.length} POI →</>
+                )}
+              </button>
+            </div>
           </div>
+
         </div>
       )}
 
