@@ -83,22 +83,15 @@ export default function ImportPage() {
         <>
           {/* Format reference */}
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6">
-            <p className="text-xs font-semibold text-blue-700 mb-2">Kolom CSV yang diperlukan</p>
-            <div className="flex flex-wrap gap-1.5">
-              {["poi_id*", "name* (atau poi_name)", "city*", "area*"].map((col) => (
-                <span
-                  key={col}
-                  className="text-[11px] font-medium px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md"
-                >
-                  {col}
-                </span>
-              ))}
+            <p className="text-xs font-semibold text-blue-700 mb-2">Format CSV minimal yang dibutuhkan</p>
+            <div className="bg-white rounded-xl px-3 py-2 font-mono text-[11px] text-gray-600 mb-2 overflow-x-auto whitespace-nowrap">
+              poi_id, poi_name, city, area
             </div>
-            <p className="text-xs text-blue-600 mt-2">
-              Opsional: category, aov, is_undersupplied, priority_tag, source, source_campaign, latitude, longitude, full_address
+            <p className="text-xs text-blue-600">
+              Kolom tambahan yang didukung (opsional): category, aov, source, priority_tag, full_address, latitude, longitude
             </p>
-            <p className="text-xs text-blue-500 mt-1">
-              category: hotel · fnb · ttd · attraction · lainnya (default jika kosong) &nbsp;|&nbsp; source: internal (default) · freelancer
+            <p className="text-xs text-blue-400 mt-1">
+              Kolom kosong akan diisi otomatis: category → &quot;lainnya&quot; · source → &quot;internal&quot;
             </p>
           </div>
 
