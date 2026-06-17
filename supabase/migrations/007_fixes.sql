@@ -20,8 +20,9 @@ CREATE POLICY "pois_insert"
 
 
 -- ── 2. Re-apply transition_claim_status (11 param, Fase 1 + 2) ───────────
--- Drop versi lama (8-param dari migration 003) jika masih ada agar tidak bentrok
+-- Drop KEDUA overload agar tidak ada ambiguitas, lalu recreate yang 11-param
 DROP FUNCTION IF EXISTS public.transition_claim_status(bigint, text, uuid, text, text, text, text, text);
+DROP FUNCTION IF EXISTS public.transition_claim_status(bigint, text, uuid, text, text, text, text, text, text, integer, timestamptz);
 
 CREATE OR REPLACE FUNCTION public.transition_claim_status(
   p_claim_id               bigint,
