@@ -17,35 +17,34 @@ export default async function TaskDetailPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Query 1: claim (tanpa join pois — hindari RLS circular issue)
   const { data: claimRaw } = await supabase
     .from("claims")
     .select(
-      `
-      claim_id,
-      user_id,
-      claim_status,
-      pic_name,
-      pic_position,
-      wa_number,
-      fail_reason,
-      submitted_at,
-      last_activity_at,
-      poi_id,
-      pois (
-        poi_id,
-        name,
-        category,
-        area,
-        city,
-        is_undersupplied,
-        priority_tag
-      )
-    `
+      `claim_id, user_id, claim_status, pic_name, pic_position,
+       wa_number, fail_reason, submitted_at, last_activity_at, poi_id`
     )
     .eq("claim_id", claimId)
     .single();
 
   if (!claimRaw) notFound();
+
+  // Query 2: poi secara terpisah
+  const { data: poiRaw } = await supabase
+    .from("pois")
+    .select("poi_id, name, category, area, city, is_undersupplied, priority_tag")
+    .eq("poi_id", claimRaw.poi_id)
+    .single();
+
+  const poi = poiRaw ?? {
+    poi_id: claimRaw.poi_id,
+    name: claimRaw.poi_id,
+    category: "lainnya",
+    area: "",
+    city: "",
+    is_undersupplied: null,
+    priority_tag: null,
+  };
 
   // Proof files dengan signed URLs
   const { data: proofFilesRaw } = await supabase
@@ -77,21 +76,9 @@ export default async function TaskDetailPage({
     .eq("claim_id", claimId)
     .order("created_at", { ascending: true });
 
-  const { pois: poi, ...claim } = claimRaw as typeof claimRaw & {
-    pois: {
-      poi_id: string;
-      name: string;
-      category: string;
-      area: string;
-      city: string;
-      is_undersupplied: boolean | null;
-      priority_tag: string | null;
-    };
-  };
-
   return (
     <TaskDetailClient
-      claim={claim}
+      claim={claimRaw}
       poi={poi}
       proofFiles={proofFiles}
       history={(historyRaw ?? []) as unknown as HistoryEntry[]}

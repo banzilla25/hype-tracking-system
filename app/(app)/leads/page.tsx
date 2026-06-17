@@ -20,31 +20,40 @@ export default async function LeadsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: leads } = await supabase
+  // Query 1: claims (tanpa join pois — hindari RLS circular issue)
+  const { data: claimsRaw } = await supabase
     .from("claims")
     .select(
-      `
-      claim_id,
-      claim_status,
-      submitted_at,
-      last_activity_at,
-      pic_name,
-      wa_number,
-      poi_id,
-      pois (
-        name,
-        category,
-        area,
-        city,
-        source
-      ),
-      profiles (
-        nickname
-      )
-    `
+      `claim_id, claim_status, submitted_at, last_activity_at,
+       pic_name, wa_number, poi_id,
+       profiles (nickname)`
     )
     .in("claim_status", FASE2_STATUSES)
     .order("last_activity_at", { ascending: false });
 
-  return <LeadsPageClient leads={(leads ?? []) as unknown as Lead[]} />;
+  // Query 2: ambil pois yang dibutuhkan secara terpisah
+  const poiIds = [...new Set((claimsRaw ?? []).map((c) => c.poi_id))];
+  const poisMap: Record<string, { name: string; category: string; area: string; city: string; source: string }> = {};
+
+  if (poiIds.length > 0) {
+    const { data: pois } = await supabase
+      .from("pois")
+      .select("poi_id, name, category, area, city, source")
+      .in("poi_id", poiIds);
+    for (const poi of pois ?? []) {
+      poisMap[poi.poi_id] = { name: poi.name, category: poi.category, area: poi.area, city: poi.city, source: poi.source };
+    }
+  }
+
+  // Gabungkan
+  const leads: Lead[] = (claimsRaw ?? []).map((c) => {
+    const { profiles, ...rest } = c as typeof c & { profiles: { nickname: string } | null };
+    return {
+      ...rest,
+      pois: poisMap[c.poi_id] ?? null,
+      profiles,
+    };
+  });
+
+  return <LeadsPageClient leads={leads} />;
 }
