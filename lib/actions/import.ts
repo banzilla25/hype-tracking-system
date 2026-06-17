@@ -2,11 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import * as XLSX from "xlsx";
 
 // Kolom yang benar-benar wajib ada
 const REQUIRED_COLS = ["poi_id", "city", "area"];
 
-// Alias header → nama kolom internal (case-insensitive, sudah di-lowercase sebelum lookup)
+// Alias header → nama kolom internal (case-insensitive)
 const HEADER_ALIASES: Record<string, string> = {
   poi_name: "name",
   nama:     "name",
@@ -50,6 +51,8 @@ export type PreviewResult = {
   summary: ImportSummary;
 };
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function detectDelimiter(line: string): string {
   const candidates = [",", ";", "\t", "|"];
   let best = ",", bestCount = 0;
@@ -73,7 +76,33 @@ function parseCSVLine(line: string, delimiter = ","): string[] {
   return result;
 }
 
-// ── Step 1: Parse CSV → preview (tidak menyimpan ke DB) ──────────────────
+// Parse file (CSV atau XLSX) → string[][] (baris pertama = header)
+async function parseFileToRows(file: File): Promise<string[][] | { error: string }> {
+  const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls")
+    || file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    || file.type === "application/vnd.ms-excel";
+
+  if (isExcel) {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) return { error: "Sheet pertama tidak ditemukan di file Excel" };
+    const raw = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(sheet, { header: 1, raw: false, defval: "" });
+    // Filter baris kosong
+    const rows = raw.filter(r => r.some(c => String(c ?? "").trim() !== ""));
+    if (rows.length < 2) return { error: "File kosong atau hanya ada header" };
+    return rows.map(r => r.map(c => String(c ?? "").trim()));
+  }
+
+  // CSV
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return { error: "File kosong atau hanya ada header" };
+  const delimiter = detectDelimiter(lines[0]);
+  return lines.map(l => parseCSVLine(l, delimiter));
+}
+
+// ── Step 1: Parse file → preview ─────────────────────────────────────────────
 export async function previewImportCsv(
   formData: FormData
 ): Promise<PreviewResult | { error: string }> {
@@ -85,19 +114,16 @@ export async function previewImportCsv(
   if (!file) return { error: "File tidak ditemukan" };
   if (file.size > 50 * 1024 * 1024) return { error: "Ukuran file maks 50 MB" };
 
-  const text = await file.text();
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return { error: "File kosong atau hanya ada header" };
-
-  // Auto-detect delimiter (comma, semicolon, tab, pipe)
-  const delimiter = detectDelimiter(lines[0]);
+  const rowsResult = await parseFileToRows(file);
+  if ("error" in rowsResult) return rowsResult;
+  const [headerRow, ...dataRows] = rowsResult;
 
   // Kolom mapping eksplisit dari UI (csvHeader.toLowerCase() → internalField)
   const mappingJson = formData.get("column_map") as string | null;
   const colMap: Record<string, string> = mappingJson ? JSON.parse(mappingJson) : {};
 
-  // Normalisasi header: cek mapping eksplisit dulu, lalu alias bawaan, lalu as-is
-  const headers = parseCSVLine(lines[0], delimiter).map((h) => {
+  // Normalisasi header
+  const headers = headerRow.map((h) => {
     const lower = h.toLowerCase().trim();
     return colMap[lower] ?? HEADER_ALIASES[lower] ?? lower;
   });
@@ -116,22 +142,22 @@ export async function previewImportCsv(
 
   const valid: PoiRow[] = [];
   const errors: string[] = [];
-  const seenIds = new Set<string>(); // deteksi duplikat dalam file
+  const seenIds = new Set<string>();
 
-  for (let i = 1; i < lines.length; i++) {
-    const row = parseCSVLine(lines[i], delimiter);
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
     const poiId = get(row, "poi_id");
     const name  = get(row, "name");
     const city  = get(row, "city");
     const area  = get(row, "area");
 
     if (!poiId || !name || !city || !area) {
-      errors.push(`Baris ${i + 1}: kolom wajib kosong (poi_id / name / city / area)`);
+      errors.push(`Baris ${i + 2}: kolom wajib kosong (poi_id / name / city / area)`);
       continue;
     }
 
     if (seenIds.has(poiId)) {
-      errors.push(`Baris ${i + 1}: poi_id "${poiId}" duplikat dalam file (sudah muncul di baris sebelumnya)`);
+      errors.push(`Baris ${i + 2}: poi_id "${poiId}" duplikat dalam file`);
       continue;
     }
     seenIds.add(poiId);
@@ -139,7 +165,7 @@ export async function previewImportCsv(
     const rawSource = get(row, "source");
     const source = rawSource || "internal";
     if (rawSource && !["freelancer", "internal"].includes(rawSource)) {
-      errors.push(`Baris ${i + 1}: source tidak valid "${rawSource}" — gunakan 'freelancer' atau 'internal'`);
+      errors.push(`Baris ${i + 2}: source tidak valid "${rawSource}" — gunakan 'freelancer' atau 'internal'`);
       continue;
     }
 
@@ -192,21 +218,17 @@ export async function previewImportCsv(
     if (row.category === "lainnya") missingCategory++;
   }
 
-  const summary: ImportSummary = {
-    totalRows: lines.length - 1,
-    validCount: valid.length,
-    errorCount: errors.length,
-    byCategory,
-    byCity,
-    bySource,
-    withAov,
-    missingCategory,
+  const totalRows = dataRows.length;
+  return {
+    valid, errors, totalRows,
+    summary: {
+      totalRows, validCount: valid.length, errorCount: errors.length,
+      byCategory, byCity, bySource, withAov, missingCategory,
+    },
   };
-
-  return { valid, errors, totalRows: lines.length - 1, summary };
 }
 
-// ── Step 2a: Import satu batch (dipanggil berulang dari client untuk progress) ──
+// ── Step 2: Import satu batch ─────────────────────────────────────────────────
 export async function importBatch(
   pois: PoiRow[]
 ): Promise<{ imported: number; errors: string[] }> {
@@ -224,7 +246,7 @@ export async function importBatch(
   return { imported: data?.length ?? 0, errors: [] };
 }
 
-// ── Step 2b: Konfirmasi import semua sekaligus (legacy / fallback) ─────────
+// ── Legacy compat ─────────────────────────────────────────────────────────────
 export async function confirmImportPois(
   pois: PoiRow[]
 ): Promise<{ imported: number; skipped: number; errors: string[] }> {
@@ -245,18 +267,13 @@ export async function confirmImportPois(
       .upsert(batch, { onConflict: "poi_id", ignoreDuplicates: true })
       .select("poi_id");
 
-    if (error) {
-      errors.push(`Batch ${Math.floor(i / BATCH) + 1}: ${error.message}`);
-    } else {
-      inserted += data?.length ?? 0;
-    }
+    if (error) { errors.push(`Batch ${Math.floor(i / BATCH) + 1}: ${error.message}`); }
+    else { inserted += data?.length ?? 0; }
   }
 
-  const skipped = pois.length - inserted;
-  return { imported: inserted, skipped, errors };
+  return { imported: inserted, skipped: pois.length - inserted, errors };
 }
 
-// legacy compat
 export async function importPoisFromCsv(
   formData: FormData
 ): Promise<{ imported: number; skipped: number; errors: string[] }> {

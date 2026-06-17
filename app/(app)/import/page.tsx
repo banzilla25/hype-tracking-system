@@ -26,17 +26,29 @@ const AUTO_ALIASES: Record<string, string> = {
   wilayah: "area", kawasan: "area",
 };
 
-function parseFirstLine(text: string): string[] {
-  const line = text.split(/\r?\n/)[0] ?? "";
+async function parseHeaders(file: File): Promise<string[]> {
+  const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
 
-  // Auto-detect delimiter
+  if (isExcel) {
+    const XLSX = await import("xlsx");
+    const ab = await file.arrayBuffer();
+    const wb = XLSX.read(ab, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) return [];
+    const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, defval: "" });
+    const first = rows[0] ?? [];
+    return first.map(c => String(c ?? "").trim()).filter(Boolean);
+  }
+
+  // CSV
+  const text = await file.text();
+  const line = text.split(/\r?\n/)[0] ?? "";
   const candidates = [",", ";", "\t", "|"];
   let delimiter = ",", maxCount = 0;
   for (const d of candidates) {
     const count = line.split(d).length - 1;
     if (count > maxCount) { maxCount = count; delimiter = d; }
   }
-
   const cols: string[] = [];
   let cur = "", inQ = false;
   for (const ch of line) {
@@ -69,8 +81,7 @@ export default function ImportPage() {
     setFileName(file.name);
     setPreviewError(null);
 
-    const text = await file.text();
-    const headers = parseFirstLine(text);
+    const headers = await parseHeaders(file);
     setRawHeaders(headers);
 
     // Auto-detect: map internal field → CSV header
@@ -194,15 +205,15 @@ export default function ImportPage() {
         <>
           {/* Format reference */}
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6">
-            <p className="text-xs font-semibold text-blue-700 mb-2">Format CSV minimal yang dibutuhkan</p>
+            <p className="text-xs font-semibold text-blue-700 mb-2">Kolom minimal yang dibutuhkan</p>
             <div className="bg-white rounded-xl px-3 py-2 font-mono text-[11px] text-gray-600 mb-2 overflow-x-auto whitespace-nowrap">
-              poi_id, poi_name, city, area
+              poi_id · poi_name · city · area
             </div>
             <p className="text-xs text-blue-600">
-              Kolom tambahan yang didukung (opsional): category, aov, source, priority_tag, full_address, latitude, longitude
+              Format: <strong>Excel (.xlsx)</strong> atau CSV — Excel lebih aman untuk nama POI yang mengandung koma.
             </p>
             <p className="text-xs text-blue-400 mt-1">
-              Nama kolom berbeda? Tidak masalah — kamu bisa mapping kolom secara manual setelah upload.
+              Nama kolom berbeda? Tidak masalah — bisa mapping manual setelah upload.
             </p>
           </div>
 
@@ -225,7 +236,7 @@ export default function ImportPage() {
                   ref={fileInputRef}
                   type="file"
                   name="csv_file"
-                  accept=".csv,text/csv"
+                  accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   required
                   onChange={handleFileChange}
                   className="absolute inset-0 opacity-0 cursor-pointer"
@@ -239,8 +250,8 @@ export default function ImportPage() {
                 ) : (
                   <>
                     <UploadIcon className="w-8 h-8 text-gray-400 mb-2" />
-                    <p className="text-sm font-medium text-gray-600">Klik atau seret file CSV</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Ukuran maks 50 MB</p>
+                    <p className="text-sm font-medium text-gray-600">Klik atau seret file CSV / Excel</p>
+                    <p className="text-xs text-gray-400 mt-0.5">.csv · .xlsx — maks 50 MB</p>
                   </>
                 )}
               </div>
