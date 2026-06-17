@@ -54,7 +54,7 @@ export async function transitionStatus(
     p_pic_position: opts.picPosition ?? null,
   });
 
-  if (error) return { error: `[DB] ${error.message}` };
+  if (error) return { error: "Terjadi kesalahan sistem. Coba lagi." };
   if (data?.error) return { error: data.error as string };
 
   revalidatePath("/tasks");
