@@ -14,6 +14,7 @@ import {
   completeCampaign,
   updateCampaignVideos,
   repeatCampaign,
+  deleteClaim,
 } from "@/lib/actions/leads";
 import ClaimTimeline from "@/components/claim-timeline";
 import NotesSection from "@/components/notes-section";
@@ -121,6 +122,7 @@ export default function LeadDetailClient({
   submitterNickname,
   history = [],
   notes = [],
+  isInternal = false,
 }: {
   claim: LeadClaim;
   poi: LeadPoi;
@@ -128,9 +130,12 @@ export default function LeadDetailClient({
   submitterNickname: string;
   history?: HistoryEntry[];
   notes?: NoteEntry[];
+  isInternal?: boolean;
 }) {
   const router = useRouter();
   const [activeForm, setActiveForm] = useState<ActiveForm>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   // Form state
   const [failReason, setFailReason] = useState("");
@@ -589,6 +594,51 @@ export default function LeadDetailClient({
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Riwayat Status</h3>
           <ClaimTimeline history={history} />
         </div>
+
+        {/* ── Hapus Pipeline (internal only) ── */}
+        {isInternal && (
+          <div className="border-t border-gray-200 pt-4">
+            {!showDeleteConfirm ? (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full py-3 border border-red-200 text-red-500 text-sm font-medium rounded-2xl hover:bg-red-50 transition-colors"
+              >
+                Hapus Pipeline Ini
+              </button>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3">
+                <p className="text-sm font-semibold text-red-800">Konfirmasi Hapus</p>
+                <p className="text-xs text-red-700">
+                  Semua data pipeline ini (catatan, bukti foto, riwayat status) akan dihapus permanen.
+                  Aksi ini <strong>tidak bisa dibatalkan</strong>.
+                </p>
+                {error && <p className="text-xs text-red-600">{error}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 border border-gray-200 text-sm text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => {
+                      startDeleteTransition(async () => {
+                        const res = await deleteClaim(claim.claim_id);
+                        if (res.error) { setError(res.error); setShowDeleteConfirm(false); return; }
+                        router.push("/leads");
+                      });
+                    }}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 disabled:opacity-40"
+                  >
+                    {isDeleting ? "Menghapus..." : "Ya, Hapus Permanen"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
     </div>

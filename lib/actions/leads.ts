@@ -199,6 +199,38 @@ export async function updateCampaignVideos(
   return {};
 }
 
+// ── Hapus pipeline klaim (internal only) ─────────────────────────────────
+export async function deleteClaim(claimId: number): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Ambil path proof files sebelum delete (untuk hapus dari storage)
+  const { data: proofFiles } = await supabase
+    .from("proof_files")
+    .select("file_url")
+    .eq("claim_id", claimId);
+  const storagePaths = (proofFiles ?? []).map((f) => f.file_url);
+
+  const { data, error } = await supabase.rpc("delete_claim", {
+    p_claim_id: claimId,
+    p_user_id:  user.id,
+  });
+
+  if (error) return { error: "Gagal menghapus data." };
+  if (data?.error) return { error: data.error as string };
+
+  // Hapus file dari storage
+  if (storagePaths.length > 0) {
+    await supabase.storage.from("proof-files").remove(storagePaths);
+  }
+
+  revalidatePath("/leads");
+  return {};
+}
+
 // ── Sourcing POI mandiri (internal) ───────────────────────────────────────
 export async function sourcePoiInternal(
   formData: FormData

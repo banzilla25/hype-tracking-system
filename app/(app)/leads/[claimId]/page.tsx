@@ -17,6 +17,13 @@ export default async function LeadDetailPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const isInternal = currentProfile?.role === "internal";
+
   // Query 1: claim (tanpa join pois — hindari RLS circular issue)
   const { data: claimRaw } = await supabase
     .from("claims")
@@ -94,6 +101,7 @@ export default async function LeadDetailPage({
       submitterNickname={submitterProfileRaw?.nickname ?? "—"}
       history={(historyRaw ?? []) as unknown as HistoryEntry[]}
       notes={(notesRaw ?? []) as unknown as NoteEntry[]}
+      isInternal={isInternal}
     />
   );
 }
