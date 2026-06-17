@@ -99,6 +99,7 @@ export async function previewImportCsv(
 
   const valid: PoiRow[] = [];
   const errors: string[] = [];
+  const seenIds = new Set<string>(); // deteksi duplikat dalam file
 
   for (let i = 1; i < lines.length; i++) {
     const row = parseCSVLine(lines[i]);
@@ -111,6 +112,12 @@ export async function previewImportCsv(
       errors.push(`Baris ${i + 1}: kolom wajib kosong (poi_id / name / city / area)`);
       continue;
     }
+
+    if (seenIds.has(poiId)) {
+      errors.push(`Baris ${i + 1}: poi_id "${poiId}" duplikat dalam file (sudah muncul di baris sebelumnya)`);
+      continue;
+    }
+    seenIds.add(poiId);
 
     const rawSource = get(row, "source");
     const source = rawSource || "internal";

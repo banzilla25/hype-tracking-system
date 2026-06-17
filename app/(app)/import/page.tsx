@@ -20,6 +20,7 @@ export default function ImportPage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [done, setDone] = useState<DoneResult | null>(null);
+  const [liveErrors, setLiveErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,12 +54,16 @@ export default function ImportPage() {
 
     let totalImported = 0;
     const allErrors: string[] = [];
+    setLiveErrors([]);
 
     for (let i = 0; i < total; i += BATCH_SIZE) {
       const batch = pois.slice(i, i + BATCH_SIZE);
       const res = await importBatch(batch);
       totalImported += res.imported;
-      if (res.errors.length) allErrors.push(...res.errors);
+      if (res.errors.length) {
+        allErrors.push(...res.errors);
+        setLiveErrors([...allErrors]);
+      }
       setProgress({ done: Math.min(i + BATCH_SIZE, total), total });
     }
 
@@ -76,6 +81,7 @@ export default function ImportPage() {
     setDone(null);
     setFileName(null);
     setProgress(null);
+    setLiveErrors([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -350,6 +356,18 @@ export default function ImportPage() {
               <p className="text-xs text-gray-500 text-right">
                 {progress.done.toLocaleString("id-ID")} / {progress.total.toLocaleString("id-ID")} data
               </p>
+              {liveErrors.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-emerald-100">
+                  <p className="text-xs font-semibold text-red-600 mb-1.5">
+                    ⚠ {liveErrors.length} baris gagal diimpor:
+                  </p>
+                  <div className="bg-red-50 rounded-xl px-3 py-2 max-h-32 overflow-auto space-y-1">
+                    {liveErrors.map((err, i) => (
+                      <p key={i} className="text-xs text-red-600">· {err}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
