@@ -20,7 +20,7 @@ export default async function TasksPage() {
   // Cek-on-load: lepas klaim yang tidak aktif > 7 hari
   await supabase.rpc("auto_release_stale_claims");
 
-  const { data: claims } = await supabase
+  const { data: allClaims } = await supabase
     .from("claims")
     .select(
       `
@@ -40,8 +40,12 @@ export default async function TasksPage() {
     `
     )
     .eq("user_id", user.id)
-    .not("claim_status", "in", `(${TERMINAL_STATUSES.join(",")})`)
     .order("last_activity_at", { ascending: false });
 
-  return <TasksPageClient claims={(claims ?? []) as unknown as TaskClaim[]} />;
+  // Filter terminal statuses di JS (konsisten dengan pool page, hindari bug .not().in() sintaks)
+  const claims = (allClaims ?? []).filter(
+    (c) => !TERMINAL_STATUSES.includes(c.claim_status)
+  );
+
+  return <TasksPageClient claims={claims as unknown as TaskClaim[]} />;
 }

@@ -193,12 +193,12 @@ export async function addPoiToPool(
   // Cek limit slot untuk freelancer
   if (!isInternal) {
     const TERMINAL = ["gagal", "poi_mati", "declined", "campaign_selesai", "repeat_campaign"];
-    const { count } = await supabase
+    const { data: slotData } = await supabase
       .from("claims")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .not("claim_status", "in", `(${TERMINAL.join(",")})`);
-    if ((count ?? 0) >= 10)
+      .select("claim_status")
+      .eq("user_id", user.id);
+    const activeCount = (slotData ?? []).filter((c) => !TERMINAL.includes(c.claim_status)).length;
+    if (activeCount >= 10)
       return { error: "Slot penuh. Selesaikan beberapa POI aktif dulu." };
   }
 
@@ -315,12 +315,12 @@ export async function addApproachedPoi(
 
   // Cek limit slot
   const TERMINAL = ["gagal", "poi_mati", "declined", "campaign_selesai", "repeat_campaign"];
-  const { count } = await supabase
+  const { data: slotData } = await supabase
     .from("claims")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .not("claim_status", "in", `(${TERMINAL.join(",")})`);
-  if ((count ?? 0) >= 10)
+    .select("claim_status")
+    .eq("user_id", user.id);
+  const activeCount = (slotData ?? []).filter((c) => !TERMINAL.includes(c.claim_status)).length;
+  if (activeCount >= 10)
     return { error: "Slot penuh. Selesaikan beberapa POI aktif dulu." };
 
   // Cek duplikat
