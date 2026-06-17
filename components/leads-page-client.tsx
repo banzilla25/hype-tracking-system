@@ -55,11 +55,15 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function LeadsPageClient({ leads }: { leads: Lead[] }) {
-  // Group by status for summary counts
-  const counts = STAGE_ORDER.reduce((acc, s) => {
-    acc[s] = leads.filter((l) => l.claim_status === s).length;
-    return acc;
-  }, {} as Record<string, number>);
+  const countWhere = (statuses: string[]) =>
+    leads.filter((l) => statuses.includes(l.claim_status)).length;
+
+  const stageCounts = {
+    menunggu: countWhere(["submitted"]),
+    validasi: countWhere(["validasi_nomor", "nomor_invalid"]),
+    fiksasi:  countWhere(["fiksasi_kerjasama", "disetujui_diklaim"]),
+    campaign: countWhere(["koordinasi_kreator", "campaign_jalan", "campaign_selesai", "repeat_campaign"]),
+  };
 
   if (leads.length === 0) {
     return (
@@ -101,13 +105,13 @@ export default function LeadsPageClient({ leads }: { leads: Lead[] }) {
       {/* Status summary */}
       <div className="grid grid-cols-4 gap-2 mb-5">
         {[
-          { key: "submitted",         label: "Menunggu" },
-          { key: "validasi_nomor",    label: "Validasi" },
-          { key: "fiksasi_kerjasama", label: "Fiksasi" },
-          { key: "campaign_jalan",    label: "Campaign" },
-        ].map(({ key, label }) => (
-          <div key={key} className="bg-white rounded-2xl border border-gray-100 px-3 py-2.5 text-center">
-            <p className="text-xl font-bold text-gray-900">{counts[key] ?? 0}</p>
+          { count: stageCounts.menunggu, label: "Menunggu" },
+          { count: stageCounts.validasi, label: "Validasi" },
+          { count: stageCounts.fiksasi,  label: "Fiksasi" },
+          { count: stageCounts.campaign, label: "Campaign" },
+        ].map(({ count, label }) => (
+          <div key={label} className="bg-white rounded-2xl border border-gray-100 px-3 py-2.5 text-center">
+            <p className="text-xl font-bold text-gray-900">{count}</p>
             <p className="text-[10px] text-gray-500 font-medium mt-0.5">{label}</p>
           </div>
         ))}
