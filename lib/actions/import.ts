@@ -50,13 +50,23 @@ export type PreviewResult = {
   summary: ImportSummary;
 };
 
-function parseCSVLine(line: string): string[] {
+function detectDelimiter(line: string): string {
+  const candidates = [",", ";", "\t", "|"];
+  let best = ",", bestCount = 0;
+  for (const d of candidates) {
+    const count = line.split(d).length - 1;
+    if (count > bestCount) { bestCount = count; best = d; }
+  }
+  return best;
+}
+
+function parseCSVLine(line: string, delimiter = ","): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
   for (const char of line) {
     if (char === '"') { inQuotes = !inQuotes; }
-    else if (char === "," && !inQuotes) { result.push(current.trim()); current = ""; }
+    else if (char === delimiter && !inQuotes) { result.push(current.trim()); current = ""; }
     else { current += char; }
   }
   result.push(current.trim());
@@ -79,12 +89,15 @@ export async function previewImportCsv(
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return { error: "File kosong atau hanya ada header" };
 
+  // Auto-detect delimiter (comma, semicolon, tab, pipe)
+  const delimiter = detectDelimiter(lines[0]);
+
   // Kolom mapping eksplisit dari UI (csvHeader.toLowerCase() → internalField)
   const mappingJson = formData.get("column_map") as string | null;
   const colMap: Record<string, string> = mappingJson ? JSON.parse(mappingJson) : {};
 
   // Normalisasi header: cek mapping eksplisit dulu, lalu alias bawaan, lalu as-is
-  const headers = parseCSVLine(lines[0]).map((h) => {
+  const headers = parseCSVLine(lines[0], delimiter).map((h) => {
     const lower = h.toLowerCase().trim();
     return colMap[lower] ?? HEADER_ALIASES[lower] ?? lower;
   });
@@ -106,7 +119,7 @@ export async function previewImportCsv(
   const seenIds = new Set<string>(); // deteksi duplikat dalam file
 
   for (let i = 1; i < lines.length; i++) {
-    const row = parseCSVLine(lines[i]);
+    const row = parseCSVLine(lines[i], delimiter);
     const poiId = get(row, "poi_id");
     const name  = get(row, "name");
     const city  = get(row, "city");

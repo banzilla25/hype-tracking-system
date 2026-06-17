@@ -28,11 +28,20 @@ const AUTO_ALIASES: Record<string, string> = {
 
 function parseFirstLine(text: string): string[] {
   const line = text.split(/\r?\n/)[0] ?? "";
+
+  // Auto-detect delimiter
+  const candidates = [",", ";", "\t", "|"];
+  let delimiter = ",", maxCount = 0;
+  for (const d of candidates) {
+    const count = line.split(d).length - 1;
+    if (count > maxCount) { maxCount = count; delimiter = d; }
+  }
+
   const cols: string[] = [];
   let cur = "", inQ = false;
   for (const ch of line) {
     if (ch === '"') { inQ = !inQ; }
-    else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
+    else if (ch === delimiter && !inQ) { cols.push(cur.trim()); cur = ""; }
     else { cur += ch; }
   }
   cols.push(cur.trim());
