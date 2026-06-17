@@ -32,12 +32,6 @@ const STATUS_CONFIG: Record<string, { label: string; badgeClass: string; priorit
   campaign_selesai:   { label: "Selesai",           badgeClass: "bg-gray-100 text-gray-500",       priority: 7 },
 };
 
-const STAGE_ORDER = [
-  "submitted", "validasi_nomor", "nomor_invalid",
-  "fiksasi_kerjasama", "disetujui_diklaim", "koordinasi_kreator", "campaign_jalan",
-  "campaign_selesai",
-];
-
 function timeAgo(dateStr: string): string {
   try {
     const diff = Date.now() - new Date(dateStr).getTime();
