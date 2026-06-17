@@ -79,10 +79,14 @@ export async function previewImportCsv(
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return { error: "File kosong atau hanya ada header" };
 
-  // Normalisasi header: lowercase lalu resolve alias
+  // Kolom mapping eksplisit dari UI (csvHeader.toLowerCase() → internalField)
+  const mappingJson = formData.get("column_map") as string | null;
+  const colMap: Record<string, string> = mappingJson ? JSON.parse(mappingJson) : {};
+
+  // Normalisasi header: cek mapping eksplisit dulu, lalu alias bawaan, lalu as-is
   const headers = parseCSVLine(lines[0]).map((h) => {
     const lower = h.toLowerCase().trim();
-    return HEADER_ALIASES[lower] ?? lower;
+    return colMap[lower] ?? HEADER_ALIASES[lower] ?? lower;
   });
 
   for (const req of REQUIRED_COLS) {

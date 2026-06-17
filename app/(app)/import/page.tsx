@@ -4,12 +4,40 @@ import { useState, useTransition, useRef } from "react";
 import { previewImportCsv, importBatch, type PreviewResult } from "@/lib/actions/import";
 import { categoryLabel } from "@/lib/category-labels";
 
-type Step = "upload" | "preview" | "done";
+type Step = "upload" | "map" | "preview" | "done";
 
 type DoneResult = { imported: number; skipped: number; errors: string[] };
 type Progress = { done: number; total: number } | null;
 
 const BATCH_SIZE = 500;
+
+// Field wajib yang harus di-map
+const REQUIRED_FIELDS = [
+  { key: "poi_id", label: "POI ID" },
+  { key: "name",   label: "Nama POI" },
+  { key: "city",   label: "Kota" },
+  { key: "area",   label: "Area / Kecamatan" },
+];
+
+// Alias yang dikenali otomatis (sama dengan server)
+const AUTO_ALIASES: Record<string, string> = {
+  poi_name: "name", nama: "name",
+  kota: "city",
+  wilayah: "area", kawasan: "area",
+};
+
+function parseFirstLine(text: string): string[] {
+  const line = text.split(/\r?\n/)[0] ?? "";
+  const cols: string[] = [];
+  let cur = "", inQ = false;
+  for (const ch of line) {
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
+    else { cur += ch; }
+  }
+  cols.push(cur.trim());
+  return cols.map(c => c.replace(/^"|"$/g, "").trim()).filter(Boolean);
+}
 
 export default function ImportPage() {
   const [step, setStep] = useState<Step>("upload");
@@ -21,27 +49,69 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [done, setDone] = useState<DoneResult | null>(null);
   const [liveErrors, setLiveErrors] = useState<string[]>([]);
+  const [rawHeaders, setRawHeaders] = useState<string[]>([]);
+  // columnMap: internal field → original CSV header
+  const [columnMap, setColumnMap] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFileName(e.target.files?.[0]?.name ?? null);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
     setPreviewError(null);
+
+    const text = await file.text();
+    const headers = parseFirstLine(text);
+    setRawHeaders(headers);
+
+    // Auto-detect: map internal field → CSV header
+    const detected: Record<string, string> = {};
+    for (const h of headers) {
+      const lower = h.toLowerCase();
+      const resolved = AUTO_ALIASES[lower] ?? lower;
+      if (REQUIRED_FIELDS.some(f => f.key === resolved)) {
+        detected[resolved] = h;
+      }
+    }
+    setColumnMap(detected);
   };
 
-  // Step 1 → Step 2: parse CSV, tampilkan preview
-  const handlePreview = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  // Build FormData dengan column_map dan submit preview
+  const submitPreview = () => {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("csv_file", file);
+
+    // Kirim mapping: csvHeader.lowercase → internalField
+    const serverMap: Record<string, string> = {};
+    for (const [field, csvHeader] of Object.entries(columnMap)) {
+      serverMap[csvHeader.toLowerCase()] = field;
+    }
+    formData.append("column_map", JSON.stringify(serverMap));
+
     setPreviewError(null);
     startTransition(async () => {
       const res = await previewImportCsv(formData);
       if ("error" in res) {
         setPreviewError(res.error);
+        setStep("upload");
         return;
       }
       setPreview(res);
       setStep("preview");
     });
+  };
+
+  // Step 1: cek apakah semua field sudah terdeteksi, atau tampilkan mapping UI
+  const handlePreview = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const missing = REQUIRED_FIELDS.filter(f => !columnMap[f.key]);
+    if (missing.length > 0) {
+      setStep("map");
+      return;
+    }
+    submitPreview();
   };
 
   // Step 2 → Step 3: simpan ke DB per batch dengan progress
@@ -82,8 +152,12 @@ export default function ImportPage() {
     setFileName(null);
     setProgress(null);
     setLiveErrors([]);
+    setRawHeaders([]);
+    setColumnMap({});
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const allMapped = REQUIRED_FIELDS.every(f => columnMap[f.key]);
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
@@ -119,7 +193,7 @@ export default function ImportPage() {
               Kolom tambahan yang didukung (opsional): category, aov, source, priority_tag, full_address, latitude, longitude
             </p>
             <p className="text-xs text-blue-400 mt-1">
-              Kolom kosong akan diisi otomatis: category → &quot;lainnya&quot; · source → &quot;internal&quot;
+              Nama kolom berbeda? Tidak masalah — kamu bisa mapping kolom secara manual setelah upload.
             </p>
           </div>
 
@@ -157,21 +231,114 @@ export default function ImportPage() {
                   <>
                     <UploadIcon className="w-8 h-8 text-gray-400 mb-2" />
                     <p className="text-sm font-medium text-gray-600">Klik atau seret file CSV</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Ukuran maks 10 MB</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Ukuran maks 50 MB</p>
                   </>
                 )}
               </div>
             </label>
+
+            {/* Deteksi kolom live */}
+            {rawHeaders.length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                <p className="text-xs font-semibold text-gray-500 mb-2">Kolom terdeteksi di file:</p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {rawHeaders.map((h) => (
+                    <span key={h} className="px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 font-mono">
+                      {h}
+                    </span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {REQUIRED_FIELDS.map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-1.5 text-xs">
+                      {columnMap[key] ? (
+                        <span className="text-green-600">✓</span>
+                      ) : (
+                        <span className="text-red-500">✗</span>
+                      )}
+                      <span className="text-gray-500">{label}:</span>
+                      <span className={columnMap[key] ? "font-mono text-gray-700" : "text-red-500 font-medium"}>
+                        {columnMap[key] ?? "tidak terdeteksi"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={isPending || !fileName}
               className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {isPending ? <><SpinnerIcon /> Memproses...</> : "Lihat Preview"}
+              {isPending ? <><SpinnerIcon /> Memproses...</> : (
+                allMapped && rawHeaders.length > 0 ? "Lihat Preview" : "Lanjut ke Mapping Kolom"
+              )}
             </button>
           </form>
         </>
+      )}
+
+      {/* ── Step Map: Mapping Kolom ─────────────────────────────────────── */}
+      {step === "map" && (
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <p className="text-sm font-semibold text-amber-800 mb-1">Mapping kolom diperlukan</p>
+            <p className="text-xs text-amber-700">
+              Beberapa kolom wajib tidak terdeteksi otomatis. Pilih kolom mana dari file CSV kamu yang sesuai dengan tiap field.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
+            {REQUIRED_FIELDS.map(({ key, label }) => (
+              <div key={key}>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  {label}
+                  <span className="ml-1 text-red-500">*</span>
+                </label>
+                <select
+                  value={columnMap[key] ?? ""}
+                  onChange={(e) => setColumnMap({ ...columnMap, [key]: e.target.value })}
+                  className={`w-full px-3 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+                    columnMap[key] ? "border-green-300 text-gray-900" : "border-gray-300 text-gray-400"
+                  }`}
+                >
+                  <option value="">— pilih kolom dari file CSV —</option>
+                  {rawHeaders.map((h) => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+                {columnMap[key] && (
+                  <p className="text-[11px] text-green-600 mt-1">
+                    ✓ &quot;{columnMap[key]}&quot; akan digunakan sebagai {label}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {previewError && (
+            <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3 text-sm text-red-700">
+              {previewError}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleReset}
+              className="flex-1 px-4 py-2.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+            >
+              Kembali
+            </button>
+            <button
+              onClick={submitPreview}
+              disabled={isPending || !allMapped}
+              className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {isPending ? <><SpinnerIcon /> Memproses...</> : "Lihat Preview →"}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ── Step 2: Preview ─────────────────────────────────────────────── */}
@@ -457,7 +624,8 @@ function StepIndicator({ current }: { current: Step }) {
     { id: "preview", label: "Preview" },
     { id: "done",    label: "Selesai" },
   ];
-  const idx = steps.findIndex((s) => s.id === current);
+  // "map" dianggap masih di step Upload
+  const idx = current === "map" ? 0 : steps.findIndex((s) => s.id === current);
   return (
     <div className="flex items-center gap-2 mb-6">
       {steps.map((s, i) => (
