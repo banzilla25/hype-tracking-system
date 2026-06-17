@@ -26,13 +26,23 @@ async function requireInternal() {
 // ── Mulai validasi nomor (submitted → validasi_nomor) ─────────────────────
 export async function startValidation(claimId: number): Promise<{ error?: string }> {
   await requireInternal();
-  return transitionStatus(claimId, "validasi_nomor");
+  const res = await transitionStatus(claimId, "validasi_nomor");
+  if (!res.error) {
+    revalidatePath("/leads");
+    revalidatePath(`/leads/${claimId}`);
+  }
+  return res;
 }
 
 // ── Nomor valid (validasi_nomor → fiksasi_kerjasama) ─────────────────────
 export async function markNumberValid(claimId: number): Promise<{ error?: string }> {
   await requireInternal();
-  return transitionStatus(claimId, "fiksasi_kerjasama");
+  const res = await transitionStatus(claimId, "fiksasi_kerjasama");
+  if (!res.error) {
+    revalidatePath("/leads");
+    revalidatePath(`/leads/${claimId}`);
+  }
+  return res;
 }
 
 // ── Nomor invalid (validasi_nomor → nomor_invalid) ───────────────────────
@@ -41,7 +51,12 @@ export async function markNumberInvalid(
   reason: string
 ): Promise<{ error?: string }> {
   await requireInternal();
-  return transitionStatus(claimId, "nomor_invalid", { failReason: reason });
+  const res = await transitionStatus(claimId, "nomor_invalid", { failReason: reason });
+  if (!res.error) {
+    revalidatePath("/leads");
+    revalidatePath(`/leads/${claimId}`);
+  }
+  return res;
 }
 
 // ── Kerjasama setuju (fiksasi → disetujui_diklaim) ───────────────────────
@@ -85,7 +100,12 @@ export async function declineKerjasama(
   reason: string
 ): Promise<{ error?: string }> {
   await requireInternal();
-  return transitionStatus(claimId, "declined", { failReason: reason });
+  const res = await transitionStatus(claimId, "declined", { failReason: reason });
+  if (!res.error) {
+    revalidatePath("/leads");
+    revalidatePath(`/leads/${claimId}`);
+  }
+  return res;
 }
 
 // ── Set koordinasi kreator (disetujui → koordinasi_kreator) ──────────────
