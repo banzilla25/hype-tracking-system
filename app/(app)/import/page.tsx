@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { previewImportCsv, confirmImportPois, type PreviewResult } from "@/lib/actions/import";
+import { previewImportCsv, importBatch, type PreviewResult } from "@/lib/actions/import";
 import { categoryLabel } from "@/lib/category-labels";
 
 type Step = "upload" | "preview" | "done";
 
 type DoneResult = { imported: number; skipped: number; errors: string[] };
+type Progress = { done: number; total: number } | null;
+
+const BATCH_SIZE = 500;
 
 export default function ImportPage() {
   const [step, setStep] = useState<Step>("upload");
   const [isPending, startTransition] = useTransition();
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [progress, setProgress] = useState<Progress>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -38,14 +43,30 @@ export default function ImportPage() {
     });
   };
 
-  // Step 2 → Step 3: simpan ke DB
-  const handleConfirm = () => {
-    if (!preview) return;
-    startTransition(async () => {
-      const res = await confirmImportPois(preview.valid);
-      setDone({ imported: res.imported, skipped: res.skipped, errors: res.errors });
-      setStep("done");
-    });
+  // Step 2 → Step 3: simpan ke DB per batch dengan progress
+  const handleConfirm = async () => {
+    if (!preview || isConfirming) return;
+    const pois = preview.valid;
+    const total = pois.length;
+    setIsConfirming(true);
+    setProgress({ done: 0, total });
+
+    let totalImported = 0;
+    const allErrors: string[] = [];
+
+    for (let i = 0; i < total; i += BATCH_SIZE) {
+      const batch = pois.slice(i, i + BATCH_SIZE);
+      const res = await importBatch(batch);
+      totalImported += res.imported;
+      if (res.errors.length) allErrors.push(...res.errors);
+      setProgress({ done: Math.min(i + BATCH_SIZE, total), total });
+    }
+
+    const skipped = total - totalImported;
+    setDone({ imported: totalImported, skipped, errors: allErrors });
+    setIsConfirming(false);
+    setProgress(null);
+    setStep("done");
   };
 
   const handleReset = () => {
@@ -54,6 +75,7 @@ export default function ImportPage() {
     setPreviewError(null);
     setDone(null);
     setFileName(null);
+    setProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -310,36 +332,52 @@ export default function ImportPage() {
             </div>
           )}
 
-          {/* ── Konfirmasi ── */}
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-            <p className="text-sm font-semibold text-emerald-800 mb-1">
-              Sudah yakin dengan data di atas?
-            </p>
-            <p className="text-xs text-emerald-700 mb-4">
-              Setelah dikonfirmasi, <strong>{preview.valid.length} POI</strong> akan masuk ke pool dengan status <strong>available</strong>.
-              {preview.errors.length > 0 && ` ${preview.errors.length} baris bermasalah tidak akan diimpor.`}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleReset}
-                disabled={isPending}
-                className="flex-1 px-4 py-2.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors font-medium"
-              >
-                Kembali & Perbaiki
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={isPending || preview.valid.length === 0}
-                className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                {isPending ? (
-                  <><SpinnerIcon /> Menyimpan...</>
-                ) : (
-                  <>Import {preview.valid.length} POI →</>
-                )}
-              </button>
+          {/* ── Konfirmasi / Progress ── */}
+          {isConfirming && progress ? (
+            <div className="bg-white border border-emerald-200 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-gray-800">Sedang mengimpor...</p>
+                <p className="text-sm font-bold text-emerald-700">
+                  {Math.round((progress.done / progress.total) * 100)}%
+                </p>
+              </div>
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                  style={{ width: `${(progress.done / progress.total) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 text-right">
+                {progress.done.toLocaleString("id-ID")} / {progress.total.toLocaleString("id-ID")} data
+              </p>
             </div>
-          </div>
+          ) : (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+              <p className="text-sm font-semibold text-emerald-800 mb-1">
+                Sudah yakin dengan data di atas?
+              </p>
+              <p className="text-xs text-emerald-700 mb-4">
+                Setelah dikonfirmasi, <strong>{preview.valid.length} POI</strong> akan masuk ke pool dengan status <strong>available</strong>.
+                {preview.errors.length > 0 && ` ${preview.errors.length} baris bermasalah tidak akan diimpor.`}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleReset}
+                  disabled={isPending}
+                  className="flex-1 px-4 py-2.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors font-medium"
+                >
+                  Kembali & Perbaiki
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={isPending || isConfirming || preview.valid.length === 0}
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Import {preview.valid.length.toLocaleString("id-ID")} POI →
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
       )}

@@ -182,9 +182,25 @@ export async function previewImportCsv(
   return { valid, errors, totalRows: lines.length - 1, summary };
 }
 
-// ── Step 2: Konfirmasi import — upsert dengan ignoreDuplicates ────────────
-// Duplikat (poi_id yang sudah ada) dilewati otomatis oleh DB.
-// Return: jumlah yang benar-benar di-insert vs total dikirim.
+// ── Step 2a: Import satu batch (dipanggil berulang dari client untuk progress) ──
+export async function importBatch(
+  pois: PoiRow[]
+): Promise<{ imported: number; errors: string[] }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  if (!pois.length) return { imported: 0, errors: [] };
+
+  const { data, error } = await supabase
+    .from("pois")
+    .upsert(pois, { onConflict: "poi_id", ignoreDuplicates: true })
+    .select("poi_id");
+
+  if (error) return { imported: 0, errors: [error.message] };
+  return { imported: data?.length ?? 0, errors: [] };
+}
+
+// ── Step 2b: Konfirmasi import semua sekaligus (legacy / fallback) ─────────
 export async function confirmImportPois(
   pois: PoiRow[]
 ): Promise<{ imported: number; skipped: number; errors: string[] }> {
