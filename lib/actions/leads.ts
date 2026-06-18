@@ -176,6 +176,42 @@ export async function repeatCampaign(claimId: number): Promise<{ error?: string 
   return res;
 }
 
+// ── Mulai round repeat campaign baru (repeat_campaign → campaign_jalan) ──
+export async function startRepeatRound(
+  claimId: number,
+  targetVideos: number,
+  creatorVisitDate?: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const visitDateTs = creatorVisitDate ? new Date(creatorVisitDate).toISOString() : null;
+
+  const { data, error } = await supabase.rpc("transition_claim_status", {
+    p_claim_id:               claimId,
+    p_to_status:              "campaign_jalan",
+    p_user_id:                user.id,
+    p_campaign_target_videos: targetVideos,
+    p_creator_visit_date:     visitDateTs,
+    p_note:                   null,
+    p_fail_reason:            null,
+    p_pic_name:               null,
+    p_wa_number:              null,
+    p_pic_position:           null,
+    p_deal_type:              null,
+  });
+
+  if (error) return { error: "Terjadi kesalahan sistem. Coba lagi." };
+  if (data?.error) return { error: data.error as string };
+
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${claimId}`);
+  return {};
+}
+
 // ── Update jumlah video campaign (tanpa ubah status) ─────────────────────
 export async function updateCampaignVideos(
   claimId: number,

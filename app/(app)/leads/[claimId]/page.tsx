@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import LeadDetailClient, { type HistoryEntry, type NoteEntry } from "@/components/lead-detail-client";
+import LeadDetailClient, { type HistoryEntry, type NoteEntry, type CampaignRound } from "@/components/lead-detail-client";
 
 export default async function LeadDetailPage({
   params,
@@ -93,6 +93,12 @@ export default async function LeadDetailPage({
     .eq("claim_id", claimId)
     .order("created_at", { ascending: true });
 
+  const { data: campaignRoundsRaw } = await supabase
+    .from("campaign_rounds")
+    .select("round_id, round_number, target_videos, uploaded_videos, creator_visit_date, started_at, completed_at")
+    .eq("claim_id", claimId)
+    .order("round_number", { ascending: true });
+
   return (
     <LeadDetailClient
       claim={claim}
@@ -101,6 +107,7 @@ export default async function LeadDetailPage({
       submitterNickname={submitterProfileRaw?.nickname ?? "—"}
       history={(historyRaw ?? []) as unknown as HistoryEntry[]}
       notes={(notesRaw ?? []) as unknown as NoteEntry[]}
+      campaignRounds={(campaignRoundsRaw ?? []) as unknown as CampaignRound[]}
       isInternal={isInternal}
     />
   );

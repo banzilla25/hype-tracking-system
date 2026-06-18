@@ -14,6 +14,7 @@ import {
   completeCampaign,
   updateCampaignVideos,
   repeatCampaign,
+  startRepeatRound,
   deleteClaim,
 } from "@/lib/actions/leads";
 import ClaimTimeline from "@/components/claim-timeline";
@@ -40,6 +41,16 @@ export type NoteEntry = {
   note_text: string;
   created_at: string;
   profiles: { nickname: string } | null;
+};
+
+export type CampaignRound = {
+  round_id: number;
+  round_number: number;
+  target_videos: number | null;
+  uploaded_videos: number;
+  creator_visit_date: string | null;
+  started_at: string | null;
+  completed_at: string | null;
 };
 
 type LeadClaim = {
@@ -107,7 +118,7 @@ function formatDate(dateStr: string | null) {
   });
 }
 
-type ActiveForm = "invalid" | "decline" | "approve" | "koordinasi" | "videos" | null;
+type ActiveForm = "invalid" | "decline" | "approve" | "koordinasi" | "videos" | "newRound" | null;
 
 // ── Main component ─────────────────────────────────────────────────────────
 
@@ -122,6 +133,7 @@ export default function LeadDetailClient({
   submitterNickname,
   history = [],
   notes = [],
+  campaignRounds = [],
   isInternal = false,
 }: {
   claim: LeadClaim;
@@ -130,6 +142,7 @@ export default function LeadDetailClient({
   submitterNickname: string;
   history?: HistoryEntry[];
   notes?: NoteEntry[];
+  campaignRounds?: CampaignRound[];
   isInternal?: boolean;
 }) {
   const router = useRouter();
@@ -147,6 +160,8 @@ export default function LeadDetailClient({
       : ""
   );
   const [videosInput, setVideosInput] = useState(String(claim.campaign_uploaded_videos ?? 0));
+  const [newRoundTarget, setNewRoundTarget] = useState("");
+  const [newRoundVisitDate, setNewRoundVisitDate] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -167,6 +182,8 @@ export default function LeadDetailClient({
       setFailReason("");
       setDealType("");
       setTargetVideos("");
+      setNewRoundTarget("");
+      setNewRoundVisitDate("");
       router.refresh();
     });
   };
@@ -256,7 +273,9 @@ export default function LeadDetailClient({
         {/* Deal & Campaign info (if applicable) */}
         {(claim.deal_type || claim.campaign_target_videos) && (
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Deal & Campaign</h3>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Deal & Campaign{campaignRounds.length > 0 ? ` — Round ${campaignRounds.length + 1}` : ""}
+            </h3>
             <div className="space-y-2">
               {claim.deal_type && (
                 <Row label="Deal Type" value={claim.deal_type === "buka_kamar" ? "Buka Kamar" : "Voucher Makanan"} />
@@ -270,6 +289,27 @@ export default function LeadDetailClient({
               {claim.creator_visit_date && (
                 <Row label="Tanggal Visit Kreator" value={formatDate(claim.creator_visit_date)} />
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Riwayat Campaign (round repeat) */}
+        {campaignRounds.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Riwayat Campaign ({campaignRounds.length} round selesai)
+            </h3>
+            <div className="space-y-3">
+              {campaignRounds.map((r) => (
+                <div key={r.round_id} className="border border-gray-100 rounded-xl p-3">
+                  <p className="text-sm font-semibold text-gray-800">Round {r.round_number}</p>
+                  <div className="mt-1 space-y-1">
+                    <Row label="Video" value={`${r.uploaded_videos} / ${r.target_videos ?? "?"} video`} />
+                    {r.started_at && <Row label="Mulai" value={formatDate(r.started_at)} />}
+                    {r.completed_at && <Row label="Selesai" value={formatDate(r.completed_at)} />}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -560,12 +600,69 @@ export default function LeadDetailClient({
 
         {/* REPEAT_CAMPAIGN */}
         {claim.claim_status === "repeat_campaign" && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-4 text-center">
-            <p className="text-sm font-semibold text-blue-700">🔁 Repeat Campaign</p>
-            <p className="text-xs text-blue-600 mt-1">
-              Merchant ini sedang menjalani campaign periode baru.
-            </p>
-          </div>
+          <>
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-4 text-center">
+              <p className="text-sm font-semibold text-blue-700">🔁 Repeat Campaign</p>
+              <p className="text-xs text-blue-600 mt-1">
+                Merchant setuju kerjasama lagi. Set target video untuk mulai round baru.
+              </p>
+            </div>
+            {activeForm === "newRound" ? (
+              <div className="bg-white rounded-2xl border border-blue-200 p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-gray-900">Round Campaign Baru</h3>
+                {error && <p className="text-xs text-red-600">{error}</p>}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Target Video <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newRoundTarget}
+                    onChange={(e) => setNewRoundTarget(e.target.value)}
+                    placeholder="Jumlah video round ini"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Tanggal Visit Kreator (opsional)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={newRoundVisitDate}
+                    onChange={(e) => setNewRoundVisitDate(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setActiveForm(null); setNewRoundTarget(""); setNewRoundVisitDate(""); }}
+                    disabled={isPending}
+                    className="flex-1 py-2.5 border border-gray-200 text-sm text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    disabled={isPending || !newRoundTarget}
+                    onClick={() => doAction(() =>
+                      startRepeatRound(claim.claim_id, parseInt(newRoundTarget, 10), newRoundVisitDate || undefined)
+                    )}
+                    className="flex-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-40"
+                  >
+                    {isPending ? "..." : "Mulai Round Baru →"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <ActionBtn
+                label="Mulai Round Baru →"
+                colorClass="bg-blue-600 hover:bg-blue-700"
+                isPending={isPending}
+                onClick={() => setActiveForm("newRound")}
+              />
+            )}
+          </>
         )}
 
         {/* DECLINED */}

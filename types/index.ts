@@ -126,7 +126,7 @@ export const ALLOWED_TRANSITIONS: Record<PoiStatus, PoiStatus[]> = {
   koordinasi_kreator:   ["campaign_jalan"],
   campaign_jalan:       ["campaign_selesai"],
   campaign_selesai:     ["repeat_campaign"],
-  repeat_campaign:      [],
+  repeat_campaign:      ["campaign_jalan"],
 };
 
 export function isTransitionAllowed(from: PoiStatus, to: PoiStatus): boolean {
