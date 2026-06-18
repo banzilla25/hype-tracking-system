@@ -32,6 +32,9 @@ export default async function LeadDetailPage({
        wa_number, wa_validated_by_freelancer, wa_validated_by_bd,
        fail_reason, deal_type, cooperation_result,
        campaign_target_videos, campaign_uploaded_videos,
+       campaign_target_kreator, campaign_actual_kreator,
+       campaign_target_gmv, campaign_actual_gmv,
+       campaign_target_orders, campaign_actual_orders,
        creator_visit_date, submitted_at, validated_at,
        fixed_at, campaign_started_at, completed_at,
        last_activity_at, poi_id,
@@ -95,7 +98,10 @@ export default async function LeadDetailPage({
 
   const { data: campaignRoundsRaw } = await supabase
     .from("campaign_rounds")
-    .select("round_id, round_number, target_videos, uploaded_videos, creator_visit_date, started_at, completed_at")
+    .select(`round_id, round_number, target_videos, uploaded_videos,
+              target_kreator, actual_kreator, target_gmv, actual_gmv,
+              target_orders, actual_orders,
+              creator_visit_date, started_at, completed_at`)
     .eq("claim_id", claimId)
     .order("round_number", { ascending: true });
 

@@ -59,11 +59,18 @@ export async function markNumberInvalid(
   return res;
 }
 
+export type CampaignTargets = {
+  videos?: number;
+  kreator?: number;
+  gmv?: number;
+  orders?: number;
+};
+
 // ── Kerjasama setuju (fiksasi → disetujui_diklaim) ───────────────────────
 export async function approveKerjasama(
   claimId: number,
   dealType: string,
-  targetVideos: number,
+  targets: CampaignTargets,
   note?: string
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -73,17 +80,20 @@ export async function approveKerjasama(
   if (!user) redirect("/login");
 
   const { data, error } = await supabase.rpc("transition_claim_status", {
-    p_claim_id:               claimId,
-    p_to_status:              "disetujui_diklaim",
-    p_user_id:                user.id,
-    p_note:                   note ?? null,
-    p_deal_type:              dealType,
-    p_campaign_target_videos: targetVideos,
-    p_fail_reason:            null,
-    p_pic_name:               null,
-    p_wa_number:              null,
-    p_pic_position:           null,
-    p_creator_visit_date:     null,
+    p_claim_id:                claimId,
+    p_to_status:               "disetujui_diklaim",
+    p_user_id:                 user.id,
+    p_note:                    note ?? null,
+    p_deal_type:               dealType,
+    p_campaign_target_videos:  targets.videos ?? null,
+    p_campaign_target_kreator: targets.kreator ?? null,
+    p_campaign_target_gmv:     targets.gmv ?? null,
+    p_campaign_target_orders:  targets.orders ?? null,
+    p_fail_reason:             null,
+    p_pic_name:                null,
+    p_wa_number:               null,
+    p_pic_position:            null,
+    p_creator_visit_date:      null,
   });
 
   if (error) return { error: "Terjadi kesalahan sistem. Coba lagi." };
@@ -179,7 +189,7 @@ export async function repeatCampaign(claimId: number): Promise<{ error?: string 
 // ── Mulai round repeat campaign baru (repeat_campaign → campaign_jalan) ──
 export async function startRepeatRound(
   claimId: number,
-  targetVideos: number,
+  targets: CampaignTargets,
   creatorVisitDate?: string
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -191,17 +201,20 @@ export async function startRepeatRound(
   const visitDateTs = creatorVisitDate ? new Date(creatorVisitDate).toISOString() : null;
 
   const { data, error } = await supabase.rpc("transition_claim_status", {
-    p_claim_id:               claimId,
-    p_to_status:              "campaign_jalan",
-    p_user_id:                user.id,
-    p_campaign_target_videos: targetVideos,
-    p_creator_visit_date:     visitDateTs,
-    p_note:                   null,
-    p_fail_reason:            null,
-    p_pic_name:               null,
-    p_wa_number:              null,
-    p_pic_position:           null,
-    p_deal_type:              null,
+    p_claim_id:                claimId,
+    p_to_status:               "campaign_jalan",
+    p_user_id:                 user.id,
+    p_campaign_target_videos:  targets.videos ?? null,
+    p_campaign_target_kreator: targets.kreator ?? null,
+    p_campaign_target_gmv:     targets.gmv ?? null,
+    p_campaign_target_orders:  targets.orders ?? null,
+    p_creator_visit_date:      visitDateTs,
+    p_note:                    null,
+    p_fail_reason:             null,
+    p_pic_name:                null,
+    p_wa_number:               null,
+    p_pic_position:            null,
+    p_deal_type:               null,
   });
 
   if (error) return { error: "Terjadi kesalahan sistem. Coba lagi." };
@@ -212,24 +225,34 @@ export async function startRepeatRound(
   return {};
 }
 
-// ── Update jumlah video campaign (tanpa ubah status) ─────────────────────
-export async function updateCampaignVideos(
+// ── Update progress campaign (video/kreator/GMV/orders, tanpa ubah status) ──
+export async function updateCampaignProgress(
   claimId: number,
-  uploadedVideos: number
+  progress: { uploadedVideos: number; actualKreator: number; actualGmv: number; actualOrders: number }
 ): Promise<{ error?: string }> {
   const { supabase } = await requireInternal();
 
-  if (uploadedVideos < 0) return { error: "Jumlah video tidak valid" };
+  if (
+    progress.uploadedVideos < 0 ||
+    progress.actualKreator < 0 ||
+    progress.actualGmv < 0 ||
+    progress.actualOrders < 0
+  ) {
+    return { error: "Nilai progress tidak valid" };
+  }
 
   const { error } = await supabase
     .from("claims")
     .update({
-      campaign_uploaded_videos: uploadedVideos,
+      campaign_uploaded_videos: progress.uploadedVideos,
+      campaign_actual_kreator: progress.actualKreator,
+      campaign_actual_gmv: progress.actualGmv,
+      campaign_actual_orders: progress.actualOrders,
       last_activity_at: new Date().toISOString(),
     })
     .eq("claim_id", claimId);
 
-  if (error) return { error: "Gagal update jumlah video." };
+  if (error) return { error: "Gagal update progress campaign." };
 
   revalidatePath(`/leads/${claimId}`);
   return {};

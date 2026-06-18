@@ -12,7 +12,7 @@ import {
   setKoordinasiKreator,
   startCampaign,
   completeCampaign,
-  updateCampaignVideos,
+  updateCampaignProgress,
   repeatCampaign,
   startRepeatRound,
   deleteClaim,
@@ -48,6 +48,12 @@ export type CampaignRound = {
   round_number: number;
   target_videos: number | null;
   uploaded_videos: number;
+  target_kreator: number | null;
+  actual_kreator: number;
+  target_gmv: number | null;
+  actual_gmv: number;
+  target_orders: number | null;
+  actual_orders: number;
   creator_visit_date: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -67,6 +73,12 @@ type LeadClaim = {
   cooperation_result: string | null;
   campaign_target_videos: number | null;
   campaign_uploaded_videos: number | null;
+  campaign_target_kreator: number | null;
+  campaign_actual_kreator: number | null;
+  campaign_target_gmv: number | null;
+  campaign_actual_gmv: number | null;
+  campaign_target_orders: number | null;
+  campaign_actual_orders: number | null;
   creator_visit_date: string | null;
   submitted_at: string | null;
   validated_at: string | null;
@@ -118,6 +130,14 @@ function formatDate(dateStr: string | null) {
   });
 }
 
+function formatRupiah(amount: number) {
+  return `Rp${amount.toLocaleString("id-ID")}`;
+}
+
+function hasAnyTarget(videos: string, kreator: string, gmv: string, orders: string) {
+  return [videos, kreator, gmv, orders].some((v) => v && parseFloat(v) > 0);
+}
+
 type ActiveForm = "invalid" | "decline" | "approve" | "koordinasi" | "videos" | "newRound" | null;
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -154,13 +174,22 @@ export default function LeadDetailClient({
   const [failReason, setFailReason] = useState("");
   const [dealType, setDealType] = useState("");
   const [targetVideos, setTargetVideos] = useState("");
+  const [targetKreator, setTargetKreator] = useState("");
+  const [targetGmv, setTargetGmv] = useState("");
+  const [targetOrders, setTargetOrders] = useState("");
   const [visitDate, setVisitDate] = useState(
     claim.creator_visit_date
       ? new Date(claim.creator_visit_date).toISOString().slice(0, 16)
       : ""
   );
   const [videosInput, setVideosInput] = useState(String(claim.campaign_uploaded_videos ?? 0));
-  const [newRoundTarget, setNewRoundTarget] = useState("");
+  const [kreatorInput, setKreatorInput] = useState(String(claim.campaign_actual_kreator ?? 0));
+  const [gmvInput, setGmvInput] = useState(String(claim.campaign_actual_gmv ?? 0));
+  const [ordersInput, setOrdersInput] = useState(String(claim.campaign_actual_orders ?? 0));
+  const [newRoundVideos, setNewRoundVideos] = useState("");
+  const [newRoundKreator, setNewRoundKreator] = useState("");
+  const [newRoundGmv, setNewRoundGmv] = useState("");
+  const [newRoundOrders, setNewRoundOrders] = useState("");
   const [newRoundVisitDate, setNewRoundVisitDate] = useState("");
 
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +211,13 @@ export default function LeadDetailClient({
       setFailReason("");
       setDealType("");
       setTargetVideos("");
-      setNewRoundTarget("");
+      setTargetKreator("");
+      setTargetGmv("");
+      setTargetOrders("");
+      setNewRoundVideos("");
+      setNewRoundKreator("");
+      setNewRoundGmv("");
+      setNewRoundOrders("");
       setNewRoundVisitDate("");
       router.refresh();
     });
@@ -271,7 +306,7 @@ export default function LeadDetailClient({
         )}
 
         {/* Deal & Campaign info (if applicable) */}
-        {(claim.deal_type || claim.campaign_target_videos) && (
+        {(claim.deal_type || claim.campaign_target_videos || claim.campaign_target_kreator || claim.campaign_target_gmv || claim.campaign_target_orders) && (
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Deal & Campaign{campaignRounds.length > 0 ? ` — Round ${campaignRounds.length + 1}` : ""}
@@ -284,6 +319,24 @@ export default function LeadDetailClient({
                 <Row
                   label="Progress Video"
                   value={`${claim.campaign_uploaded_videos ?? 0} / ${claim.campaign_target_videos} video`}
+                />
+              )}
+              {claim.campaign_target_kreator && (
+                <Row
+                  label="Progress Kreator"
+                  value={`${claim.campaign_actual_kreator ?? 0} / ${claim.campaign_target_kreator} kreator`}
+                />
+              )}
+              {claim.campaign_target_gmv && (
+                <Row
+                  label="Progress GMV"
+                  value={`${formatRupiah(claim.campaign_actual_gmv ?? 0)} / ${formatRupiah(claim.campaign_target_gmv)}`}
+                />
+              )}
+              {claim.campaign_target_orders && (
+                <Row
+                  label="Progress Orders"
+                  value={`${claim.campaign_actual_orders ?? 0} / ${claim.campaign_target_orders} orders`}
                 />
               )}
               {claim.creator_visit_date && (
@@ -304,7 +357,18 @@ export default function LeadDetailClient({
                 <div key={r.round_id} className="border border-gray-100 rounded-xl p-3">
                   <p className="text-sm font-semibold text-gray-800">Round {r.round_number}</p>
                   <div className="mt-1 space-y-1">
-                    <Row label="Video" value={`${r.uploaded_videos} / ${r.target_videos ?? "?"} video`} />
+                    {r.target_videos != null && (
+                      <Row label="Video" value={`${r.uploaded_videos} / ${r.target_videos} video`} />
+                    )}
+                    {r.target_kreator != null && (
+                      <Row label="Kreator" value={`${r.actual_kreator} / ${r.target_kreator} kreator`} />
+                    )}
+                    {r.target_gmv != null && (
+                      <Row label="GMV" value={`${formatRupiah(r.actual_gmv)} / ${formatRupiah(r.target_gmv)}`} />
+                    )}
+                    {r.target_orders != null && (
+                      <Row label="Orders" value={`${r.actual_orders} / ${r.target_orders} orders`} />
+                    )}
                     {r.started_at && <Row label="Mulai" value={formatDate(r.started_at)} />}
                     {r.completed_at && <Row label="Selesai" value={formatDate(r.completed_at)} />}
                   </div>
@@ -428,27 +492,28 @@ export default function LeadDetailClient({
                     <option value="voucher_makanan">Voucher Makanan (F&B)</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Target Video <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={targetVideos}
-                    onChange={(e) => setTargetVideos(e.target.value)}
-                    placeholder="Jumlah video yang harus diupload"
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <p className="text-xs text-gray-500">
+                  Isi minimal salah satu target di bawah ini.
+                </p>
+                <TargetInputs
+                  videos={targetVideos} onVideos={setTargetVideos}
+                  kreator={targetKreator} onKreator={setTargetKreator}
+                  gmv={targetGmv} onGmv={setTargetGmv}
+                  orders={targetOrders} onOrders={setTargetOrders}
+                />
                 <div className="flex gap-2">
-                  <button onClick={() => { setActiveForm(null); setDealType(""); setTargetVideos(""); }} disabled={isPending}
+                  <button onClick={() => { setActiveForm(null); setDealType(""); setTargetVideos(""); setTargetKreator(""); setTargetGmv(""); setTargetOrders(""); }} disabled={isPending}
                     className="flex-1 py-2.5 border border-gray-200 text-sm text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50">
                     Batal
                   </button>
                   <button
-                    disabled={isPending || !dealType || !targetVideos}
-                    onClick={() => doAction(() => approveKerjasama(claim.claim_id, dealType, parseInt(targetVideos, 10)))}
+                    disabled={isPending || !dealType || !hasAnyTarget(targetVideos, targetKreator, targetGmv, targetOrders)}
+                    onClick={() => doAction(() => approveKerjasama(claim.claim_id, dealType, {
+                      videos:  targetVideos  ? parseInt(targetVideos, 10)   : undefined,
+                      kreator: targetKreator ? parseInt(targetKreator, 10)  : undefined,
+                      gmv:     targetGmv     ? parseFloat(targetGmv)        : undefined,
+                      orders:  targetOrders  ? parseInt(targetOrders, 10)   : undefined,
+                    }))}
                     className="flex-2 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {isPending ? "..." : "Konfirmasi Setuju"}
@@ -542,32 +607,46 @@ export default function LeadDetailClient({
         {/* CAMPAIGN_JALAN */}
         {claim.claim_status === "campaign_jalan" && (
           <>
-            {/* Video progress update */}
+            {/* Progress update */}
             <div className="bg-white rounded-2xl border border-emerald-200 p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Update Progress Video</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Update Progress Campaign</h3>
               {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Video Terupload ({claim.campaign_uploaded_videos ?? 0}/{claim.campaign_target_videos ?? "?"})
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={claim.campaign_target_videos ?? 999}
-                    value={videosInput}
-                    onChange={(e) => setVideosInput(e.target.value)}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <div className="space-y-3">
+                <ProgressInput
+                  label="Video Terupload" target={claim.campaign_target_videos}
+                  value={videosInput} onChange={setVideosInput}
+                />
+                {claim.campaign_target_kreator != null && (
+                  <ProgressInput
+                    label="Kreator Aktual" target={claim.campaign_target_kreator}
+                    value={kreatorInput} onChange={setKreatorInput}
                   />
-                </div>
-                <button
-                  disabled={isPending}
-                  onClick={() => doAction(() => updateCampaignVideos(claim.claim_id, parseInt(videosInput, 10) || 0))}
-                  className="mt-4 px-4 py-2.5 bg-gray-700 text-white text-sm font-medium rounded-xl hover:bg-gray-800 disabled:opacity-40"
-                >
-                  Update
-                </button>
+                )}
+                {claim.campaign_target_gmv != null && (
+                  <ProgressInput
+                    label="GMV Aktual" target={claim.campaign_target_gmv}
+                    value={gmvInput} onChange={setGmvInput} isCurrency
+                  />
+                )}
+                {claim.campaign_target_orders != null && (
+                  <ProgressInput
+                    label="Orders Aktual" target={claim.campaign_target_orders}
+                    value={ordersInput} onChange={setOrdersInput}
+                  />
+                )}
               </div>
+              <button
+                disabled={isPending}
+                onClick={() => doAction(() => updateCampaignProgress(claim.claim_id, {
+                  uploadedVideos: parseInt(videosInput, 10) || 0,
+                  actualKreator:  parseInt(kreatorInput, 10) || 0,
+                  actualGmv:      parseFloat(gmvInput) || 0,
+                  actualOrders:   parseInt(ordersInput, 10) || 0,
+                }))}
+                className="mt-3 w-full px-4 py-2.5 bg-gray-700 text-white text-sm font-medium rounded-xl hover:bg-gray-800 disabled:opacity-40"
+              >
+                {isPending ? "..." : "Update Progress"}
+              </button>
             </div>
 
             <CampaignSelesaiButton
@@ -611,19 +690,15 @@ export default function LeadDetailClient({
               <div className="bg-white rounded-2xl border border-blue-200 p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-gray-900">Round Campaign Baru</h3>
                 {error && <p className="text-xs text-red-600">{error}</p>}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Target Video <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={newRoundTarget}
-                    onChange={(e) => setNewRoundTarget(e.target.value)}
-                    placeholder="Jumlah video round ini"
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <p className="text-xs text-gray-500">
+                  Isi minimal salah satu target di bawah ini.
+                </p>
+                <TargetInputs
+                  videos={newRoundVideos} onVideos={setNewRoundVideos}
+                  kreator={newRoundKreator} onKreator={setNewRoundKreator}
+                  gmv={newRoundGmv} onGmv={setNewRoundGmv}
+                  orders={newRoundOrders} onOrders={setNewRoundOrders}
+                />
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Tanggal Visit Kreator (opsional)
@@ -637,16 +712,25 @@ export default function LeadDetailClient({
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setActiveForm(null); setNewRoundTarget(""); setNewRoundVisitDate(""); }}
+                    onClick={() => {
+                      setActiveForm(null);
+                      setNewRoundVideos(""); setNewRoundKreator(""); setNewRoundGmv(""); setNewRoundOrders("");
+                      setNewRoundVisitDate("");
+                    }}
                     disabled={isPending}
                     className="flex-1 py-2.5 border border-gray-200 text-sm text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50"
                   >
                     Batal
                   </button>
                   <button
-                    disabled={isPending || !newRoundTarget}
+                    disabled={isPending || !hasAnyTarget(newRoundVideos, newRoundKreator, newRoundGmv, newRoundOrders)}
                     onClick={() => doAction(() =>
-                      startRepeatRound(claim.claim_id, parseInt(newRoundTarget, 10), newRoundVisitDate || undefined)
+                      startRepeatRound(claim.claim_id, {
+                        videos:  newRoundVideos  ? parseInt(newRoundVideos, 10)  : undefined,
+                        kreator: newRoundKreator ? parseInt(newRoundKreator, 10) : undefined,
+                        gmv:     newRoundGmv     ? parseFloat(newRoundGmv)       : undefined,
+                        orders:  newRoundOrders  ? parseInt(newRoundOrders, 10)  : undefined,
+                      }, newRoundVisitDate || undefined)
                     )}
                     className="flex-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-40"
                   >
@@ -749,6 +833,65 @@ function Row({ label, value }: { label: string; value: string | null | undefined
     <div className="flex justify-between text-sm">
       <span className="text-gray-500">{label}</span>
       <span className="text-gray-900 font-medium">{value ?? "—"}</span>
+    </div>
+  );
+}
+
+function TargetInputs({
+  videos, onVideos, kreator, onKreator, gmv, onGmv, orders, onOrders,
+}: {
+  videos: string; onVideos: (v: string) => void;
+  kreator: string; onKreator: (v: string) => void;
+  gmv: string; onGmv: (v: string) => void;
+  orders: string; onOrders: (v: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Target Video</label>
+        <input type="number" min={0} value={videos} onChange={(e) => onVideos(e.target.value)}
+          placeholder="0"
+          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Target Kreator</label>
+        <input type="number" min={0} value={kreator} onChange={(e) => onKreator(e.target.value)}
+          placeholder="0"
+          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Target GMV (Rp)</label>
+        <input type="number" min={0} value={gmv} onChange={(e) => onGmv(e.target.value)}
+          placeholder="0"
+          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Target Orders</label>
+        <input type="number" min={0} value={orders} onChange={(e) => onOrders(e.target.value)}
+          placeholder="0"
+          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+    </div>
+  );
+}
+
+function ProgressInput({
+  label, target, value, onChange, isCurrency = false,
+}: {
+  label: string; target: number | null; value: string; onChange: (v: string) => void; isCurrency?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-xs text-gray-500 mb-1">
+        {label} ({isCurrency ? formatRupiah(Number(value) || 0) : value || 0}/{target != null ? (isCurrency ? formatRupiah(target) : target) : "?"})
+      </label>
+      <input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
     </div>
   );
 }
