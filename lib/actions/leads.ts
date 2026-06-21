@@ -143,6 +143,9 @@ export async function setKoordinasiKreator(
     p_pic_position:           null,
     p_deal_type:              null,
     p_campaign_target_videos: null,
+    p_campaign_target_kreator: null,
+    p_campaign_target_gmv:     null,
+    p_campaign_target_orders:  null,
   });
 
   if (error) return { error: "Terjadi kesalahan sistem. Coba lagi." };

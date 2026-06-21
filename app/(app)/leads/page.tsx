@@ -11,6 +11,7 @@ const FASE2_STATUSES = [
   "koordinasi_kreator",
   "campaign_jalan",
   "campaign_selesai",
+  "repeat_campaign", // butuh aksi lanjutan "Mulai Round Baru", jangan hilang dari antrian
 ];
 
 export default async function LeadsPage() {

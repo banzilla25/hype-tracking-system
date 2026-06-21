@@ -98,6 +98,7 @@ type LeadPoi = {
   is_undersupplied: boolean | null;
   priority_tag: string | null;
   source: string;
+  source_campaign: string | null;
 };
 
 type ProofFile = {
@@ -261,6 +262,11 @@ export default function LeadDetailClient({
           <p className="text-xs text-gray-400 mt-1">
             Submitted oleh: <span className="font-medium">{submitterNickname}</span>
           </p>
+          {poi.source_campaign && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              Campaign sourcing: <span className="font-medium">{poi.source_campaign}</span>
+            </p>
+          )}
         </div>
 
         {/* Contact info */}
@@ -306,12 +312,18 @@ export default function LeadDetailClient({
         )}
 
         {/* Deal & Campaign info (if applicable) */}
-        {(claim.deal_type || claim.campaign_target_videos || claim.campaign_target_kreator || claim.campaign_target_gmv || claim.campaign_target_orders) && (
+        {(claim.deal_type || claim.cooperation_result || claim.campaign_target_videos || claim.campaign_target_kreator || claim.campaign_target_gmv || claim.campaign_target_orders) && (
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Deal & Campaign{campaignRounds.length > 0 ? ` — Round ${campaignRounds.length + 1}` : ""}
             </h3>
             <div className="space-y-2">
+              {claim.cooperation_result && (
+                <Row
+                  label="Hasil Kerjasama"
+                  value={claim.cooperation_result === "agreed" ? "Setuju" : "Tidak Lanjut"}
+                />
+              )}
               {claim.deal_type && (
                 <Row label="Deal Type" value={claim.deal_type === "buka_kamar" ? "Buka Kamar" : "Voucher Makanan"} />
               )}

@@ -172,7 +172,7 @@ function TaskCard({ claim }: { claim: TaskClaim }) {
               )}
             </div>
             <p className="text-sm font-semibold text-gray-900 leading-snug truncate">
-              {poi?.name ?? claim.poi_id}
+              {poi?.name ?? "POI tidak ditemukan"}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
               {poi?.area}, {poi?.city}

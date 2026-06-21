@@ -30,6 +30,8 @@ const STATUS_CONFIG: Record<string, { label: string; badgeClass: string; priorit
   koordinasi_kreator: { label: "Koordinasi",       badgeClass: "bg-cyan-100 text-cyan-700",       priority: 5 },
   campaign_jalan:     { label: "Campaign Jalan",   badgeClass: "bg-emerald-100 text-emerald-700", priority: 6 },
   campaign_selesai:   { label: "Selesai",           badgeClass: "bg-gray-100 text-gray-500",       priority: 7 },
+  repeat_campaign:    { label: "Repeat Campaign",  badgeClass: "bg-blue-100 text-blue-700",       priority: 8 },
+  declined:           { label: "Declined",         badgeClass: "bg-red-100 text-red-700",         priority: 4 },
 };
 
 function timeAgo(dateStr: string): string {
@@ -149,7 +151,7 @@ function LeadCard({ lead }: { lead: Lead }) {
                 </span>
               )}
             </div>
-            <p className="text-sm font-semibold text-gray-900 truncate">{poi?.name ?? lead.poi_id}</p>
+            <p className="text-sm font-semibold text-gray-900 truncate">{poi?.name ?? "POI tidak ditemukan"}</p>
             <p className="text-xs text-gray-500">{poi?.area}, {poi?.city}</p>
             {lead.profiles?.nickname && (
               <p className="text-xs text-gray-400 mt-0.5">oleh {lead.profiles.nickname}</p>

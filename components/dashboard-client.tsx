@@ -63,6 +63,12 @@ const FUNNEL_STAGES = [
     color: "bg-green-500",
     textColor: "text-green-700",
   },
+  {
+    label: "Repeat Campaign",
+    statuses: ["repeat_campaign"],
+    color: "bg-blue-400",
+    textColor: "text-blue-700",
+  },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -172,13 +178,12 @@ export default function DashboardClient({
           })}
         </div>
 
-        {/* Terminal statuses note */}
+        {/* Terminal statuses note — sudah selesai/keluar pipeline, tidak butuh aksi lagi */}
         <div className="mt-4 pt-4 border-t border-gray-100 flex gap-4 flex-wrap text-xs text-gray-500">
           {[
             { label: "Gagal", key: "gagal" },
             { label: "POI Mati", key: "poi_mati" },
             { label: "Declined", key: "declined" },
-            { label: "Repeat Campaign", key: "repeat_campaign" },
           ].map(({ label, key }) => (
             <span key={key}>
               {label}: <strong className="text-gray-700">{statusCounts[key] ?? 0}</strong>

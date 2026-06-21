@@ -77,7 +77,7 @@ export default async function LeadDetailPage({
   const [{ data: poiRaw }, proofFiles] = await Promise.all([
     supabase
       .from("pois")
-      .select("poi_id, name, category, area, city, is_undersupplied, priority_tag, source")
+      .select("poi_id, name, category, area, city, is_undersupplied, priority_tag, source, source_campaign")
       .eq("poi_id", claimRaw.poi_id)
       .single(),
     Promise.all(
@@ -92,13 +92,14 @@ export default async function LeadDetailPage({
 
   const poi = poiRaw ?? {
     poi_id: claimRaw.poi_id,
-    name: claimRaw.poi_id,
+    name: "POI tidak ditemukan",
     category: "lainnya",
     area: "",
     city: "",
     is_undersupplied: null,
     priority_tag: null,
     source: "internal",
+    source_campaign: null,
   };
 
   const { profiles: submitterProfileRaw, ...claim } = claimRaw as typeof claimRaw & {

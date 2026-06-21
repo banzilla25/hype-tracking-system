@@ -38,7 +38,7 @@ export default async function TaskDetailPage({
 
   const poi = poiRaw ?? {
     poi_id: claimRaw.poi_id,
-    name: claimRaw.poi_id,
+    name: "POI tidak ditemukan",
     category: "lainnya",
     area: "",
     city: "",
