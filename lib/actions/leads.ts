@@ -260,11 +260,7 @@ export async function updateCampaignProgress(
 
 // ── Hapus pipeline klaim (internal only) ─────────────────────────────────
 export async function deleteClaim(claimId: number): Promise<{ error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireInternal();
 
   // Ambil path proof files sebelum delete (untuk hapus dari storage)
   const { data: proofFiles } = await supabase

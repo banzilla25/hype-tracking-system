@@ -4,6 +4,24 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+// ── Helper: pastikan user internal ────────────────────────────────────────
+async function requireInternal() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "internal") redirect("/pool");
+  return { supabase, user };
+}
+
 export async function createProfile(
   formData: FormData
 ): Promise<{ error: string } | undefined> {
@@ -39,11 +57,7 @@ export async function createProfile(
 }
 
 export async function approveAccount(userId: string): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase } = await requireInternal();
 
   await supabase
     .from("profiles")
@@ -54,11 +68,7 @@ export async function approveAccount(userId: string): Promise<void> {
 }
 
 export async function rejectAccount(userId: string): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase } = await requireInternal();
 
   await supabase
     .from("profiles")

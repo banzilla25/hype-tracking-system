@@ -79,6 +79,14 @@ export async function updateContactInfo(
   if (!picName.trim()) return { error: "Nama PIC wajib diisi" };
   if (!waNumber.trim()) return { error: "Nomor WhatsApp wajib diisi" };
 
+  const { data: claim } = await supabase
+    .from("claims")
+    .select("claim_status, poi_id")
+    .eq("claim_id", claimId)
+    .eq("user_id", user.id)
+    .single();
+  if (!claim) return { error: "Klaim tidak ditemukan" };
+
   const { error } = await supabase
     .from("claims")
     .update({
@@ -91,6 +99,22 @@ export async function updateContactInfo(
     .eq("user_id", user.id);
 
   if (error) return { error: "Gagal menyimpan kontak. Coba lagi." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  await supabase.from("status_history").insert({
+    poi_id:          claim.poi_id,
+    claim_id:        claimId,
+    from_status:     claim.claim_status,
+    to_status:       claim.claim_status,
+    changed_by:      user.id,
+    changed_by_role: profile?.role ?? "freelancer",
+    note:            `Update kontak: PIC "${picName.trim()}", WA "${waNumber.trim()}"`,
+  });
 
   revalidatePath(`/tasks/${claimId}`);
   return {};
@@ -114,6 +138,14 @@ export async function uploadProofFile(
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   if (!["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
     return { error: "Format tidak didukung. Gunakan JPG, PNG, atau WebP." };
+  }
+
+  const { count: existingFileCount } = await supabase
+    .from("proof_files")
+    .select("file_id", { count: "exact", head: true })
+    .eq("claim_id", claimId);
+  if ((existingFileCount ?? 0) >= 10) {
+    return { error: "Maksimal 10 file bukti per klaim. Hapus salah satu dulu kalau perlu upload lagi." };
   }
 
   const storagePath = `${claimId}/${Date.now()}.${ext}`;
