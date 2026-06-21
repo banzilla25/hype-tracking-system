@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ProfileClient from "@/components/profile-client";
+import { FEE_LOCKED_STATUSES, FEE_PER_VALIDATED_POI, type PoiStatus } from "@/types";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -23,6 +24,10 @@ export default async function ProfilePage() {
 
   const claims = claimsRaw ?? [];
 
+  const feeAmanCount = claims.filter((c) =>
+    FEE_LOCKED_STATUSES.includes(c.claim_status as PoiStatus)
+  ).length;
+
   const stats = {
     total:          claims.length,
     aktif:          claims.filter((c) =>
@@ -32,6 +37,8 @@ export default async function ProfilePage() {
     gagal:          claims.filter((c) => c.claim_status === "gagal" && !c.release_reason).length,
     autoRelease:    claims.filter((c) => c.release_reason === "inactivity").length,
     selesai:        claims.filter((c) => c.claim_status === "campaign_selesai").length,
+    feeAmanCount,
+    totalFee:       feeAmanCount * FEE_PER_VALIDATED_POI,
   };
 
   return (

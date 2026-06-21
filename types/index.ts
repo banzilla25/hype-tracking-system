@@ -132,3 +132,13 @@ export const ALLOWED_TRANSITIONS: Record<PoiStatus, PoiStatus[]> = {
 export function isTransitionAllowed(from: PoiStatus, to: PoiStatus): boolean {
   return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
 }
+
+// ── Fee Freelancer (estimasi, bukan sistem pembayaran asli) ────────────────
+// Status-status yang HANYA bisa dicapai setelah validasi_nomor lolos.
+// Begitu nomor WA divalidasi tim internal, fee freelancer dianggap aman —
+// progress campaign setelahnya bukan tanggung jawab freelancer lagi.
+export const FEE_LOCKED_STATUSES: PoiStatus[] = [
+  "fiksasi_kerjasama", "declined", "disetujui_diklaim",
+  "koordinasi_kreator", "campaign_jalan", "campaign_selesai", "repeat_campaign",
+];
+export const FEE_PER_VALIDATED_POI = 10000;

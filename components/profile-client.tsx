@@ -11,6 +11,8 @@ type Stats = {
   gagal: number;
   autoRelease: number;
   selesai: number;
+  feeAmanCount: number;
+  totalFee: number;
 };
 
 export default function ProfileClient({
@@ -121,6 +123,20 @@ export default function ProfileClient({
       {role === "freelancer" && (
         <div className="bg-white rounded-2xl border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">Statistik Kinerja</h2>
+
+          {/* Fee terkumpul */}
+          <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3.5 mb-4 text-center">
+            <p className="text-xs font-medium text-green-700">Fee Terkumpul</p>
+            <p className="text-2xl font-bold text-green-700 mt-0.5">
+              Rp{stats.totalFee.toLocaleString("id-ID")}
+            </p>
+            <p className="text-[11px] text-green-600 mt-1">
+              {stats.feeAmanCount} POI lolos validasi nomor
+            </p>
+          </div>
+          <p className="text-[11px] text-gray-400 -mt-2 mb-4">
+            Fee terkunci begitu nomor WA divalidasi tim internal — progress campaign setelahnya bukan tanggung jawabmu.
+          </p>
 
           <div className="grid grid-cols-3 gap-3 mb-4">
             <StatCard label="Total Klaim" value={stats.total} color="text-gray-800" />

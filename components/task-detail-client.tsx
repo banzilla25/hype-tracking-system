@@ -13,6 +13,7 @@ import ClaimTimeline from "@/components/claim-timeline";
 import NotesSection from "@/components/notes-section";
 import { compressImage } from "@/lib/utils/compress-image";
 import { categoryLabel } from "@/lib/category-labels";
+import { FEE_LOCKED_STATUSES, type PoiStatus } from "@/types";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ type ProofFile = {
 const STATUS_CONFIG: Record<string, { label: string; badgeClass: string; desc?: string }> = {
   in_progress:         { label: "Sedang Proses",    badgeClass: "bg-blue-100 text-blue-700",     desc: "Sedang cari kontak merchant" },
   semi_dealing:        { label: "Semi-Dealing",     badgeClass: "bg-yellow-100 text-yellow-700", desc: "Sudah dapat kontak, sedang negosiasi" },
-  submitted:           { label: "Submitted",        badgeClass: "bg-green-100 text-green-700",   desc: "Menunggu review tim internal" },
+  submitted:           { label: "Submitted",        badgeClass: "bg-yellow-100 text-yellow-700", desc: "Menunggu review tim internal" },
   nomor_invalid:       { label: "Nomor Invalid",    badgeClass: "bg-red-100 text-red-700",       desc: "Tim internal: nomor tidak dapat dihubungi" },
   validasi_nomor:      { label: "Divalidasi",       badgeClass: "bg-purple-100 text-purple-700", desc: "Tim internal sedang memvalidasi nomor" },
   fiksasi_kerjasama:   { label: "Fiksasi",          badgeClass: "bg-indigo-100 text-indigo-700", desc: "Tim internal sedang fiksasi kerjasama" },
@@ -242,6 +243,11 @@ export default function TaskDetailClient({
           <BackIcon className="w-5 h-5" />
         </Link>
         <h1 className="text-base font-semibold text-gray-900 flex-1 truncate">Tugas Saya</h1>
+        {FEE_LOCKED_STATUSES.includes(claim.claim_status as PoiStatus) && (
+          <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">
+            ✓ Fee Aman
+          </span>
+        )}
         <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${statusCfg.badgeClass}`}>
           {statusCfg.label}
         </span>
@@ -331,7 +337,6 @@ export default function TaskDetailClient({
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     onChange={handleFileUpload}
                     disabled={isUploadPending}
                     className="hidden"

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { categoryLabel } from "@/lib/category-labels";
+import { FEE_LOCKED_STATUSES, type PoiStatus } from "@/types";
 
 function timeAgo(dateStr: string): string {
   try {
@@ -39,7 +40,7 @@ export type TaskClaim = {
 const STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   in_progress:         { label: "Proses",          badgeClass: "bg-blue-100 text-blue-700" },
   semi_dealing:        { label: "Semi-Dealing",     badgeClass: "bg-yellow-100 text-yellow-700" },
-  submitted:           { label: "Submitted",        badgeClass: "bg-green-100 text-green-700" },
+  submitted:           { label: "Submitted",        badgeClass: "bg-yellow-100 text-yellow-700" },
   nomor_invalid:       { label: "Nomor Invalid",    badgeClass: "bg-red-100 text-red-700" },
   validasi_nomor:      { label: "Divalidasi",       badgeClass: "bg-purple-100 text-purple-700" },
   fiksasi_kerjasama:   { label: "Fiksasi",          badgeClass: "bg-indigo-100 text-indigo-700" },
@@ -53,8 +54,21 @@ function getStatusConfig(status: string) {
   return STATUS_CONFIG[status] ?? { label: status, badgeClass: "bg-gray-100 text-gray-600" };
 }
 
+const DIPROSES_STATUSES = ["validasi_nomor", "fiksasi_kerjasama"];
+const DISETUJUI_STATUSES = ["disetujui_diklaim", "koordinasi_kreator", "campaign_jalan", "campaign_selesai"];
+
 export default function TasksPageClient({ claims }: { claims: TaskClaim[] }) {
   const router = useRouter();
+
+  const countWhere = (statuses: string[]) =>
+    claims.filter((c) => statuses.includes(c.claim_status)).length;
+
+  const stageCounts = {
+    menunggu: countWhere(["submitted"]),
+    diproses: countWhere(DIPROSES_STATUSES),
+    disetujui: countWhere(DISETUJUI_STATUSES),
+    perluAksi: countWhere(["nomor_invalid"]),
+  };
 
   if (claims.length === 0) {
     return (
@@ -100,6 +114,21 @@ export default function TasksPageClient({ claims }: { claims: TaskClaim[] }) {
             + Sudah Approach?
           </button>
         </div>
+
+        {/* Status summary */}
+        <div className="grid grid-cols-4 gap-2 mt-3">
+          {[
+            { count: stageCounts.menunggu, label: "Menunggu" },
+            { count: stageCounts.diproses, label: "Diproses" },
+            { count: stageCounts.disetujui, label: "Disetujui" },
+            { count: stageCounts.perluAksi, label: "Perlu Aksi" },
+          ].map(({ count, label }) => (
+            <div key={label} className="bg-white rounded-2xl border border-gray-100 px-2 py-2.5 text-center">
+              <p className="text-lg font-bold text-gray-900">{count}</p>
+              <p className="text-[9px] text-gray-500 font-medium mt-0.5">{label}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* List */}
@@ -120,6 +149,7 @@ function TaskCard({ claim }: { claim: TaskClaim }) {
 
   const hasContact = !!(claim.pic_name && claim.wa_number);
   const isNomorInvalid = claim.claim_status === "nomor_invalid";
+  const isFeeAman = FEE_LOCKED_STATUSES.includes(claim.claim_status as PoiStatus);
 
   return (
     <Link href={`/tasks/${claim.claim_id}`} className="block">
@@ -148,11 +178,16 @@ function TaskCard({ claim }: { claim: TaskClaim }) {
               {poi?.area}, {poi?.city}
             </p>
           </div>
-          <span
-            className={`flex-shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full ${badgeClass}`}
-          >
-            {label}
-          </span>
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            {isFeeAman && (
+              <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                ✓ Fee Aman
+              </span>
+            )}
+            <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${badgeClass}`}>
+              {label}
+            </span>
+          </div>
         </div>
 
         {/* Bottom row */}
