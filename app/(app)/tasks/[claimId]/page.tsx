@@ -18,7 +18,7 @@ export default async function TaskDetailPage({
   if (!user) redirect("/login");
 
   // Query 1: claim (tanpa join pois — hindari RLS circular issue)
-  const { data: claimRaw } = await supabase
+  const { data: claimRaw, error: claimError } = await supabase
     .from("claims")
     .select(
       `claim_id, user_id, claim_status, pic_name, pic_position,
@@ -27,6 +27,10 @@ export default async function TaskDetailPage({
     .eq("claim_id", claimId)
     .single();
 
+  if (claimError) {
+    console.error("[tasks/[claimId]] Gagal load claim:", claimError);
+    throw new Error(`Gagal memuat data klaim (claim_id=${claimId}): ${claimError.message}`);
+  }
   if (!claimRaw) notFound();
 
   // Query 2: poi secara terpisah

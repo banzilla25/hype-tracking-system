@@ -20,11 +20,11 @@ export default async function LeadDetailPage({
   // Batch 1: query yang hanya butuh claimId/user.id, dijalankan paralel
   const [
     { data: currentProfile },
-    { data: claimRaw },
+    { data: claimRaw, error: claimError },
     { data: proofFilesRaw },
     { data: historyRaw },
     { data: notesRaw },
-    { data: campaignRoundsRaw },
+    { data: campaignRoundsRaw, error: roundsError },
   ] = await Promise.all([
     supabase.from("profiles").select("role").eq("id", user.id).single(),
     // claim (tanpa join pois — hindari RLS circular issue)
@@ -70,7 +70,14 @@ export default async function LeadDetailPage({
       .order("round_number", { ascending: true }),
   ]);
 
+  if (claimError) {
+    console.error("[leads/[claimId]] Gagal load claim:", claimError);
+    throw new Error(`Gagal memuat data klaim (claim_id=${claimId}): ${claimError.message}`);
+  }
   if (!claimRaw) notFound();
+  if (roundsError) {
+    console.error("[leads/[claimId]] Gagal load campaign_rounds:", roundsError);
+  }
   const isInternal = currentProfile?.role === "internal";
 
   // Batch 2: poi (butuh poi_id dari claim) + signed url proof files, paralel
