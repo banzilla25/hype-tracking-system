@@ -49,6 +49,7 @@ export default function PoolPageClient({
 }: Props) {
   const [filterCategory, setFilterCategory] = useState("semua");
   const [filterArea, setFilterArea] = useState("semua");
+  const [searchQuery, setSearchQuery] = useState("");
   const [claimingPoiId, setClaimingPoiId] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -80,6 +81,8 @@ export default function PoolPageClient({
         if (filterCategory !== "semua" && poi.category !== filterCategory)
           return false;
         if (filterArea !== "semua" && poi.area !== filterArea) return false;
+        if (searchQuery.trim() && !poi.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+          return false;
         return true;
       })
       .sort((a, b) => {
@@ -89,7 +92,7 @@ export default function PoolPageClient({
         if ((b.aov ?? 0) !== (a.aov ?? 0)) return (b.aov ?? 0) - (a.aov ?? 0);
         return a.name.localeCompare(b.name, "id");
       });
-  }, [pois, userClaimSet, filterCategory, filterArea]);
+  }, [pois, userClaimSet, filterCategory, filterArea, searchQuery]);
 
   const availableCount = poolPois.filter((p) => p.status === "available").length;
 
@@ -135,6 +138,26 @@ export default function PoolPageClient({
               {cat === "semua" ? "Semua" : categoryLabel(cat)}
             </button>
           ))}
+        </div>
+
+        {/* Search bar nama POI */}
+        <div className="mt-2 relative">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari nama POI..."
+            className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Area filter */}
@@ -317,6 +340,14 @@ function EmptyState() {
       <p className="text-sm font-medium text-gray-600">Tidak ada POI tersedia</p>
       <p className="text-xs text-gray-400 mt-1">Coba ubah filter kategori atau area</p>
     </div>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+    </svg>
   );
 }
 
