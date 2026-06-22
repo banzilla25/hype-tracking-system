@@ -152,7 +152,7 @@ export default function TaskDetailClient({
       } else {
         setActiveForm(null);
         setFailReason("");
-        router.refresh();
+        // Tidak perlu router.refresh() — revalidatePath di server action sudah cukup
       }
     });
   };
@@ -188,7 +188,6 @@ export default function TaskDetailClient({
       );
       if (res.error) { setActionError(res.error); return; }
       setActiveForm(null);
-      router.refresh();
     });
   };
 
@@ -210,7 +209,6 @@ export default function TaskDetailClient({
       formData.append("file", compressed);
       const res = await uploadProofFile(claim.claim_id, formData);
       if (res.error) setUploadError(res.error);
-      else router.refresh();
       if (fileInputRef.current) fileInputRef.current.value = "";
     });
   };
@@ -219,7 +217,6 @@ export default function TaskDetailClient({
     startUploadTransition(async () => {
       const res = await deleteProofFile(fileId, storagePath, claim.claim_id);
       if (res.error) setUploadError(res.error);
-      else router.refresh();
     });
   };
 

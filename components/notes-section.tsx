@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { addNote } from "@/lib/actions/notes";
 
 type Note = {
@@ -32,7 +31,6 @@ export default function NotesSection({
   canAdd: boolean;
   isInternal: boolean;
 }) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [text, setText] = useState("");
   const [internalOnly, setInternalOnly] = useState(false);
@@ -49,7 +47,7 @@ export default function NotesSection({
       }
       setText("");
       setInternalOnly(false);
-      router.refresh();
+      // Tidak perlu router.refresh() — revalidatePath di server action sudah cukup
     });
   };
 

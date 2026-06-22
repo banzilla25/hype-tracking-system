@@ -220,7 +220,8 @@ export default function LeadDetailClient({
       setNewRoundGmv("");
       setNewRoundOrders("");
       setNewRoundVisitDate("");
-      router.refresh();
+      // Tidak perlu router.refresh() — revalidatePath di server action
+      // sudah memicu refresh otomatis, double refresh cuma bikin lambat.
     });
   };
 

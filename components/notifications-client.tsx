@@ -2,7 +2,6 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   markNotificationRead,
   markAllNotificationsRead,
@@ -46,7 +45,6 @@ export default function NotificationsClient({
 }: {
   notifications: Notification[];
 }) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -54,14 +52,13 @@ export default function NotificationsClient({
   const handleMarkRead = (id: number) => {
     startTransition(async () => {
       await markNotificationRead(id);
-      router.refresh();
+      // Tidak perlu router.refresh() — revalidatePath di server action sudah cukup
     });
   };
 
   const handleMarkAll = () => {
     startTransition(async () => {
       await markAllNotificationsRead();
-      router.refresh();
     });
   };
 
