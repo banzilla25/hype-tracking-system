@@ -1,13 +1,24 @@
 -- ============================================================
--- HYPE Tracking System — Migration 011
--- Tambah target campaign: kreator, GMV, orders (selain video).
--- Semua opsional, tapi minimal salah satu target wajib diisi saat
--- "Setuju Kerjasama" atau mulai round repeat baru.
+-- HYPE Tracking System — Migration 015
+-- Perbaikan: migration 011 menambah 3 parameter baru ke
+-- transition_claim_status (11 → 14 param) tanpa DROP versi lama
+-- dulu. Postgres menganggap signature berbeda = fungsi baru,
+-- jadi sekarang ada 2 overload yang bikin "function name is not
+-- unique". Karena SQL Editor jalanin satu file sebagai 1 transaksi,
+-- error ini juga me-rollback ALTER TABLE ADD COLUMN di migration 011
+-- — makanya kolom campaign_actual_kreator dkk belum benar-benar ada.
+--
+-- Migration ini:
+-- 1. Re-apply semua ALTER TABLE ADD COLUMN (idempotent, aman diulang)
+-- 2. DROP SEMUA overload transition_claim_status secara dinamis
+--    (tidak hardcode signature, supaya tidak kejadian lagi)
+-- 3. CREATE ulang versi final yang benar (14 param)
+-- 4. Reload schema cache PostgREST
 --
 -- Run: Supabase Dashboard → SQL Editor → paste & Run
 -- ============================================================
 
--- ── 1. Kolom baru di claims ────────────────────────────────────────────
+-- ── 1. Re-apply kolom baru (aman walau sudah ada / belum ada) ────────────
 ALTER TABLE public.claims ADD COLUMN IF NOT EXISTS campaign_target_kreator int;
 ALTER TABLE public.claims ADD COLUMN IF NOT EXISTS campaign_actual_kreator int NOT NULL DEFAULT 0;
 ALTER TABLE public.claims ADD COLUMN IF NOT EXISTS campaign_target_gmv numeric;
@@ -15,7 +26,6 @@ ALTER TABLE public.claims ADD COLUMN IF NOT EXISTS campaign_actual_gmv numeric N
 ALTER TABLE public.claims ADD COLUMN IF NOT EXISTS campaign_target_orders int;
 ALTER TABLE public.claims ADD COLUMN IF NOT EXISTS campaign_actual_orders int NOT NULL DEFAULT 0;
 
--- ── 2. Kolom baru di campaign_rounds (histori) ─────────────────────────
 ALTER TABLE public.campaign_rounds ADD COLUMN IF NOT EXISTS target_kreator int;
 ALTER TABLE public.campaign_rounds ADD COLUMN IF NOT EXISTS actual_kreator int NOT NULL DEFAULT 0;
 ALTER TABLE public.campaign_rounds ADD COLUMN IF NOT EXISTS target_gmv numeric;
@@ -23,12 +33,7 @@ ALTER TABLE public.campaign_rounds ADD COLUMN IF NOT EXISTS actual_gmv numeric N
 ALTER TABLE public.campaign_rounds ADD COLUMN IF NOT EXISTS target_orders int;
 ALTER TABLE public.campaign_rounds ADD COLUMN IF NOT EXISTS actual_orders int NOT NULL DEFAULT 0;
 
--- ── 3. Update transition_claim_status: tambah param target baru ───────
--- PENTING: signature berubah dari 11 jadi 14 parameter. CREATE OR REPLACE
--- TIDAK mengganti fungsi lama kalau signature beda — malah menambah
--- overload baru yang bikin ambigu ("function name is not unique") untuk
--- semua caller yang masih kirim parameter lebih sedikit. DROP dulu versi
--- lama secara dinamis (apa pun signature-nya) sebelum CREATE yang baru.
+-- ── 2. DROP semua overload transition_claim_status (dinamis, anti-ambigu) ──
 DO $$
 DECLARE
   r record;
@@ -44,6 +49,7 @@ BEGIN
   END LOOP;
 END $$;
 
+-- ── 3. CREATE versi final (14 param) ───────────────────────────────────────
 CREATE FUNCTION public.transition_claim_status(
   p_claim_id               bigint,
   p_to_status              text,
@@ -247,3 +253,6 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.transition_claim_status TO authenticated;
+
+-- ── 4. Reload schema cache PostgREST ───────────────────────────────────────
+NOTIFY pgrst, 'reload schema';
