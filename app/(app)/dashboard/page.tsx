@@ -39,8 +39,8 @@ export default async function DashboardPage() {
 
   const freelancerMap = new Map<string, FreelancerRow>();
   for (const c of (claimsRaw ?? [])) {
-    const profileArr = c.profiles as unknown as { nickname: string }[] | null;
-    const nickname = profileArr?.[0]?.nickname ?? c.user_id;
+    const profile = c.profiles as unknown as { nickname: string } | null;
+    const nickname = profile?.nickname ?? "(akun dihapus)";
     if (!freelancerMap.has(c.user_id)) {
       freelancerMap.set(c.user_id, {
         user_id: c.user_id,
