@@ -295,7 +295,6 @@ export async function sourcePoiInternal(
 ): Promise<{ claimId?: number; error?: string }> {
   const { supabase, user } = await requireInternal();
 
-  const poiId = (formData.get("poi_id") as string)?.trim();
   const name = (formData.get("name") as string)?.trim();
   const category = (formData.get("category") as string)?.trim();
   const city = (formData.get("city") as string)?.trim();
@@ -303,18 +302,16 @@ export async function sourcePoiInternal(
   const picName = (formData.get("pic_name") as string)?.trim();
   const waNumber = (formData.get("wa_number") as string)?.trim();
   const picPosition = (formData.get("pic_position") as string)?.trim() || null;
-  const aovStr = formData.get("aov") as string;
-  const aov = aovStr ? parseFloat(aovStr) : null;
   const isUndersupplied = formData.get("is_undersupplied") === "true";
-  const priorityTag = (formData.get("priority_tag") as string)?.trim() || null;
-  const sourceCampaign = (formData.get("source_campaign") as string)?.trim() || null;
 
-  if (!poiId || !name || !category || !city || !area) {
-    return { error: "Kolom wajib (POI ID, Nama, Kategori, Kota, Area) belum diisi" };
+  if (!name || !category || !city || !area) {
+    return { error: "Kolom wajib (Nama, Kategori, Kota, Area) belum diisi" };
   }
   if (!picName || !waNumber) {
     return { error: "Nama PIC dan Nomor WA wajib diisi" };
   }
+
+  const poiId = `poi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   const { data, error } = await supabase.rpc("source_poi_internal", {
     p_poi_id:          poiId,
@@ -326,10 +323,10 @@ export async function sourcePoiInternal(
     p_wa_number:       waNumber,
     p_user_id:         user.id,
     p_pic_position:    picPosition,
-    p_aov:             isNaN(aov as number) ? null : aov,
+    p_aov:             null,
     p_is_undersupplied: isUndersupplied,
-    p_priority_tag:    priorityTag,
-    p_source_campaign: sourceCampaign,
+    p_priority_tag:    null,
+    p_source_campaign: null,
   });
 
   if (error) return { error: "Terjadi kesalahan sistem. Coba lagi." };

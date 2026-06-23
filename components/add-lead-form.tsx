@@ -35,7 +35,6 @@ export default function AddLeadForm() {
 
       {/* POI Info */}
       <Section title="Data POI">
-        <Field label="POI ID" name="poi_id" required placeholder="ID unik dari TikTok" />
         <Field label="Nama Tempat" name="name" required placeholder="Nama hotel / restoran / dsb" />
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -65,7 +64,6 @@ export default function AddLeadForm() {
 
       {/* Detail opsional */}
       <Section title="Detail Tambahan (opsional)">
-        <Field label="AOV (Rupiah)" name="aov" type="number" placeholder="Rata-rata transaksi" />
         <div className="flex items-center gap-3">
           <input type="checkbox" name="is_undersupplied" value="true" id="undersupplied"
             className="w-4 h-4 rounded text-blue-600" />
@@ -73,8 +71,6 @@ export default function AddLeadForm() {
             POI Undersupplied (prioritas tinggi)
           </label>
         </div>
-        <Field label="Priority Tag" name="priority_tag" placeholder="Cth: VIP, Ramadan, dsb" />
-        <Field label="Source Campaign" name="source_campaign" placeholder="Nama campaign sumber" />
       </Section>
 
       <button
