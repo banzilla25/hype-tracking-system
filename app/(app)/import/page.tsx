@@ -445,15 +445,6 @@ export default function ImportPage() {
                     </p>
                   ))}
                 </div>
-                <div>
-                  <p className="text-[11px] font-medium text-gray-500 mb-1">Kelengkapan</p>
-                  <p className="text-xs text-gray-700">
-                    <span className="font-semibold">{preview.summary.withAov}</span> punya AOV
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {preview.summary.validCount - preview.summary.withAov} tanpa AOV
-                  </p>
-                </div>
               </div>
             </div>
           )}

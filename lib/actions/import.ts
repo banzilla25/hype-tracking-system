@@ -22,11 +22,8 @@ export type PoiRow = {
   category: string;
   city: string;
   area: string;
-  aov: number | null;
   is_undersupplied: boolean | null;
-  priority_tag: string | null;
   source: string;
-  source_campaign: string | null;
   latitude: number | null;
   longitude: number | null;
   full_address: string | null;
@@ -40,7 +37,6 @@ export type ImportSummary = {
   byCategory: Record<string, number>;
   byCity: Record<string, number>;
   bySource: Record<string, number>;
-  withAov: number;
   missingCategory: number;
 };
 
@@ -169,9 +165,6 @@ export async function previewImportCsv(
       continue;
     }
 
-    const aovStr = get(row, "aov");
-    const aov    = aovStr ? parseFloat(aovStr) : null;
-
     const isUStr = get(row, "is_undersupplied").toLowerCase();
     const isUndersupplied =
       ["true", "1", "ya"].includes(isUStr)    ? true
@@ -191,11 +184,8 @@ export async function previewImportCsv(
       category:         rawCategory || "lainnya",
       city,
       area,
-      aov:              aov && !isNaN(aov) ? aov : null,
       is_undersupplied: isUndersupplied,
-      priority_tag:     get(row, "priority_tag") || null,
       source,
-      source_campaign:  get(row, "source_campaign") || null,
       latitude:         lat && !isNaN(lat) ? lat : null,
       longitude:        lng && !isNaN(lng) ? lng : null,
       full_address:     get(row, "full_address") || null,
@@ -207,14 +197,12 @@ export async function previewImportCsv(
   const byCategory: Record<string, number> = {};
   const byCity: Record<string, number> = {};
   const bySource: Record<string, number> = {};
-  let withAov = 0;
   let missingCategory = 0;
 
   for (const row of valid) {
     byCategory[row.category] = (byCategory[row.category] ?? 0) + 1;
     byCity[row.city] = (byCity[row.city] ?? 0) + 1;
     bySource[row.source] = (bySource[row.source] ?? 0) + 1;
-    if (row.aov) withAov++;
     if (row.category === "lainnya") missingCategory++;
   }
 
@@ -223,7 +211,7 @@ export async function previewImportCsv(
     valid, errors, totalRows,
     summary: {
       totalRows, validCount: valid.length, errorCount: errors.length,
-      byCategory, byCity, bySource, withAov, missingCategory,
+      byCategory, byCity, bySource, missingCategory,
     },
   };
 }

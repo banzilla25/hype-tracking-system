@@ -277,7 +277,7 @@ export async function deleteClaim(claimId: number): Promise<{ error?: string }> 
     p_user_id:  user.id,
   });
 
-  if (error) return { error: `[DB] ${error.message}` };
+  if (error) return { error: "Gagal menghapus data." };
   if (data?.error) return { error: data.error as string };
 
   // Hapus file dari storage
