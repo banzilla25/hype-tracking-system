@@ -84,8 +84,8 @@ const STATUS_CONFIG: Record<string, { label: string; badgeClass: string; desc?: 
   campaign_selesai:    { label: "Campaign Selesai", badgeClass: "bg-gray-100 text-gray-600",     desc: "Semua video tayang sesuai target" },
 };
 
-type ActiveForm = "contact" | "edit_contact" | "failed" | "dead_poi" | "nomor_invalid_update" | null;
-type ConfirmAction = "submit" | "gagal" | "poi_mati" | null;
+type ActiveForm = "contact" | "edit_contact" | "failed" | "nomor_invalid_update" | null;
+type ConfirmAction = "submit" | "gagal" | null;
 
 // ── Main component ─────────────────────────────────────────────────────────
 
@@ -150,7 +150,7 @@ export default function TaskDetailClient({
         setActionError(res.error);
         return;
       }
-      if (["gagal", "poi_mati"].includes(toStatus)) {
+      if (toStatus === "gagal") {
         router.push("/tasks");
       } else {
         setActiveForm(null);
@@ -171,11 +171,6 @@ export default function TaskDetailClient({
   const handleGagal = () => {
     if (!failReason.trim()) { setActionError("Alasan wajib diisi"); return; }
     doTransition("gagal", { failReason: failReason.trim() });
-  };
-
-  const handlePoiMati = () => {
-    if (!failReason.trim()) { setActionError("Alasan wajib diisi"); return; }
-    doTransition("poi_mati", { failReason: failReason.trim() });
   };
 
   const handleSubmitClaim = () => doTransition("submitted");
@@ -434,21 +429,6 @@ export default function TaskDetailClient({
               />
             )}
 
-            {activeForm === "dead_poi" && (
-              <FailReasonForm
-                value={failReason}
-                onChange={setFailReason}
-                title="Alasan POI Tutup Permanen"
-                placeholder="Contoh: Toko sudah tutup, gedung dibongkar..."
-                submitLabel="Konfirmasi POI Tutup"
-                submitClass="bg-red-600 hover:bg-red-700"
-                isPending={isPending}
-                error={actionError}
-                onSubmit={handlePoiMati}
-                onCancel={resetForm}
-              />
-            )}
-
             {activeForm === null && (
               <div className="space-y-2">
                 <button
@@ -476,29 +456,7 @@ export default function TaskDetailClient({
                     onClick={() => setConfirmAction("gagal")}
                     className="w-full py-3 border border-orange-200 text-orange-600 text-sm font-medium rounded-2xl hover:bg-orange-50 transition-colors"
                   >
-                    Tandai Gagal
-                  </button>
-                )}
-
-                {/* POI Tutup — dengan konfirmasi */}
-                {confirmAction === "poi_mati" ? (
-                  <div className="flex gap-2">
-                    <button onClick={resetForm} className="flex-1 py-2.5 border border-gray-200 text-sm text-gray-600 rounded-xl hover:bg-gray-50">
-                      Batal
-                    </button>
-                    <button
-                      onClick={() => { setConfirmAction(null); setActiveForm("dead_poi"); }}
-                      className="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700"
-                    >
-                      Ya, Permanen →
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmAction("poi_mati")}
-                    className="w-full py-3 border border-red-200 text-red-600 text-sm font-medium rounded-2xl hover:bg-red-50 transition-colors"
-                  >
-                    POI Tutup Permanen
+                    Tandai Gagal/Lepas POI
                   </button>
                 )}
               </div>
