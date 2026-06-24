@@ -16,6 +16,7 @@ type PoolPoi = {
   priority_tag: string | null;
   status: string;
   current_claim_id: number | null;
+  claimant_nickname: string | null;
 };
 
 interface Props {
@@ -295,7 +296,7 @@ function PoiCard({
         {isLocked ? (
           <span className="flex items-center gap-1.5 text-xs text-gray-400">
             <LockIcon />
-            Sedang dikerjakan
+            {poi.claimant_nickname ? `Dikerjakan oleh ${poi.claimant_nickname}` : "Sedang dikerjakan"}
           </span>
         ) : (
           <button

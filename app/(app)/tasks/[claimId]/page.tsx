@@ -36,7 +36,7 @@ export default async function TaskDetailPage({
   // Query 2: poi secara terpisah
   const { data: poiRaw } = await supabase
     .from("pois")
-    .select("poi_id, name, category, area, city, is_undersupplied, priority_tag")
+    .select("poi_id, name, category, area, city, is_undersupplied, priority_tag, approval_status")
     .eq("poi_id", claimRaw.poi_id)
     .single();
 
@@ -48,6 +48,7 @@ export default async function TaskDetailPage({
     city: "",
     is_undersupplied: null,
     priority_tag: null,
+    approval_status: "approved",
   };
 
   // Proof files dengan signed URLs

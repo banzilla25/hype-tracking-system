@@ -11,11 +11,16 @@ const navItems = [
   { href: "/leads/add", label: "Sourcing POI Mandiri", icon: PlusCircleIcon },
   { href: "/pool/add", label: "Tambah ke Pool", icon: PoolAddIcon },
   { href: "/approve", label: "Approve Akun", icon: CheckCircleIcon },
+  { href: "/approve-poi", label: "Approve POI Baru", icon: CheckCircleIcon },
   { href: "/import", label: "Import POI", icon: UploadIcon },
   { href: "/notifications", label: "Notifikasi", icon: BellNavIcon },
 ];
 
-export default function InternalSidebar({ nickname, unreadCount = 0 }: { nickname: string; unreadCount?: number }) {
+export default function InternalSidebar({
+  nickname, unreadCount = 0, pendingPoiCount = 0,
+}: {
+  nickname: string; unreadCount?: number; pendingPoiCount?: number;
+}) {
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
@@ -44,7 +49,11 @@ export default function InternalSidebar({ nickname, unreadCount = 0 }: { nicknam
       <nav className="flex-1 p-2 md:p-3 space-y-0.5">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
-          const showBadge = item.href === "/notifications" && unreadCount > 0;
+          const badgeCount =
+            item.href === "/notifications" ? unreadCount :
+            item.href === "/approve-poi"   ? pendingPoiCount :
+            0;
+          const showBadge = badgeCount > 0;
           return (
             <Link
               key={item.href}
@@ -68,7 +77,7 @@ export default function InternalSidebar({ nickname, unreadCount = 0 }: { nicknam
               {showBadge && (
                 <span className="hidden md:flex min-w-4.5 h-4.5 bg-red-500 rounded-full items-center justify-center px-1.5">
                   <span className="text-[9px] text-white font-bold">
-                    {unreadCount > 9 ? "9+" : unreadCount}
+                    {badgeCount > 9 ? "9+" : badgeCount}
                   </span>
                 </span>
               )}

@@ -248,6 +248,7 @@ export async function addPoiToPool(
     source:          isInternal ? "internal" : "freelancer",
     status:          poiStatus,
     current_claim_id: null,
+    approval_status: isInternal ? "approved" : "pending",
   });
   if (poiErr) return { error: "Gagal menyimpan POI. Coba lagi." };
 
@@ -381,6 +382,7 @@ export async function addApproachedPoi(
     source:          "freelancer",
     status:          initialStatus,
     current_claim_id: null,
+    approval_status: "pending",
   });
   if (poiErr) return { error: "Gagal menyimpan POI. Coba lagi." };
 

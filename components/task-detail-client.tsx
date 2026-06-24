@@ -58,6 +58,7 @@ type TaskPoi = {
   city: string;
   is_undersupplied: boolean | null;
   priority_tag: string | null;
+  approval_status: string;
 };
 
 type ProofFile = {
@@ -122,6 +123,8 @@ export default function TaskDetailClient({
     label: claim.claim_status,
     badgeClass: "bg-gray-100 text-gray-600",
   };
+
+  const isPendingApproval = poi.approval_status === "pending";
 
   const canSubmit =
     !!claim.pic_name &&
@@ -277,6 +280,19 @@ export default function TaskDetailClient({
           )}
         </div>
 
+        {/* Banner: menunggu approval internal — sembunyikan semua aksi sampai disetujui */}
+        {isPendingApproval && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-4 text-center">
+            <p className="text-sm font-semibold text-yellow-800">Menunggu Approval Internal</p>
+            <p className="text-xs text-yellow-700 mt-1">
+              POI ini baru kamu tambahkan dan masih ditinjau tim internal. Kamu belum bisa
+              lanjutkan proses sampai disetujui — kamu akan dapat notifikasi begitu sudah diputuskan.
+            </p>
+          </div>
+        )}
+
+        {!isPendingApproval && (
+        <>
         {/* Contact card — tampil jika sudah ada kontak */}
         {(claim.pic_name || claim.wa_number) && activeForm !== "edit_contact" && activeForm !== "contact" && (
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
@@ -623,6 +639,8 @@ export default function TaskDetailClient({
             isInternal={false}
           />
         </div>
+        </>
+        )}
 
         {/* ── Riwayat Status ── */}
         <div className="bg-white rounded-2xl border border-gray-200 p-4">

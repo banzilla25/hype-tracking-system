@@ -31,9 +31,18 @@ export default async function AppLayout({
     .eq("is_read", false);
 
   if (profile.role === "internal") {
+    const { count: pendingPoiCount } = await supabase
+      .from("pois")
+      .select("*", { count: "exact", head: true })
+      .eq("approval_status", "pending");
+
     return (
       <div className="flex min-h-screen bg-gray-50">
-        <InternalSidebar nickname={profile.nickname} unreadCount={unreadCount ?? 0} />
+        <InternalSidebar
+          nickname={profile.nickname}
+          unreadCount={unreadCount ?? 0}
+          pendingPoiCount={pendingPoiCount ?? 0}
+        />
         <main className="flex-1 min-w-0 overflow-auto">{children}</main>
       </div>
     );

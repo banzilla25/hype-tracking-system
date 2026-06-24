@@ -42,9 +42,21 @@ export default async function PoolPage() {
   const userClaimIds = activeClaims.map((c) => c.claim_id);
   const activeClaimCount = activeClaims.length;
 
+  // Nama freelancer yang sedang mengerjakan POI terkunci (tanpa expose data sensitif klaim)
+  const { data: claimants } = await supabase.rpc("get_pool_claimants");
+  const claimantMap: Record<number, string> = {};
+  for (const c of claimants ?? []) {
+    claimantMap[c.claim_id] = c.nickname;
+  }
+
+  const poisWithClaimant = (pois ?? []).map((p) => ({
+    ...p,
+    claimant_nickname: p.current_claim_id ? claimantMap[p.current_claim_id] ?? null : null,
+  }));
+
   return (
     <PoolPageClient
-      pois={pois ?? []}
+      pois={poisWithClaimant}
       userClaimIds={userClaimIds}
       activeClaimCount={activeClaimCount}
     />
