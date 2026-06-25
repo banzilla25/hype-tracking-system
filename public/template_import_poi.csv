@@ -1,4 +1,4 @@
-poi_id,poi_name,city,area
-TK-001,Warung Makan Pak Budi,Jakarta,Kemang
-TK-002,Hotel Santika Premiere,Surabaya,Gubeng
-TK-003,Wisata Alam Gunung Batur,Bali,Kintamani
+poi_name,city,area
+Warung Makan Pak Budi,Jakarta,Kemang
+Hotel Santika Premiere,Surabaya,Gubeng
+Wisata Alam Gunung Batur,Bali,Kintamani

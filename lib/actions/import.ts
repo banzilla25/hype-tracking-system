@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import * as XLSX from "xlsx";
 
-// Kolom yang benar-benar wajib ada
-const REQUIRED_COLS = ["poi_id", "city", "area"];
+// Kolom yang benar-benar wajib ada (poi_id di-generate otomatis, tidak perlu dari file)
+const REQUIRED_COLS = ["city", "area"];
 
 // Alias header → nama kolom internal (case-insensitive)
 const HEADER_ALIASES: Record<string, string> = {
@@ -38,11 +38,13 @@ export type ImportSummary = {
   byCity: Record<string, number>;
   bySource: Record<string, number>;
   missingCategory: number;
+  duplicateCount: number;
 };
 
 export type PreviewResult = {
   valid: PoiRow[];
   errors: string[];
+  duplicateWarnings: string[];
   totalRows: number;
   summary: ImportSummary;
 };
@@ -126,7 +128,7 @@ export async function previewImportCsv(
 
   for (const req of REQUIRED_COLS) {
     if (!headers.includes(req))
-      return { error: `Kolom wajib tidak ditemukan: "${req}". File harus memiliki kolom poi_id, city, dan area.` };
+      return { error: `Kolom wajib tidak ditemukan: "${req}". File harus memiliki kolom poi_name, city, dan area.` };
   }
   if (!headers.includes("name"))
     return { error: `Kolom nama tidak ditemukan. Tambahkan kolom "name" atau "poi_name".` };
@@ -136,27 +138,35 @@ export async function previewImportCsv(
     return idx >= 0 ? (row[idx]?.trim() ?? "") : "";
   };
 
+  // Nama POI yang sudah ada di database (untuk peringatan duplikat, bukan blocker)
+  const { data: existingPois } = await supabase.from("pois").select("name");
+  const existingNames = new Set((existingPois ?? []).map((p) => p.name.trim().toLowerCase()));
+
   const valid: PoiRow[] = [];
   const errors: string[] = [];
-  const seenIds = new Set<string>();
+  const duplicateWarnings: string[] = [];
+  const seenNames = new Set<string>();
 
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
-    const poiId = get(row, "poi_id");
     const name  = get(row, "name");
     const city  = get(row, "city");
     const area  = get(row, "area");
 
-    if (!poiId || !name || !city || !area) {
-      errors.push(`Baris ${i + 2}: kolom wajib kosong (poi_id / name / city / area)`);
+    if (!name || !city || !area) {
+      errors.push(`Baris ${i + 2}: kolom wajib kosong (name / city / area)`);
       continue;
     }
 
-    if (seenIds.has(poiId)) {
-      errors.push(`Baris ${i + 2}: poi_id "${poiId}" duplikat dalam file`);
-      continue;
+    const normalizedName = name.trim().toLowerCase();
+    if (seenNames.has(normalizedName)) {
+      duplicateWarnings.push(`Baris ${i + 2}: nama "${name}" duplikat dengan baris lain di file ini`);
+    } else if (existingNames.has(normalizedName)) {
+      duplicateWarnings.push(`Baris ${i + 2}: nama "${name}" sudah ada di database`);
     }
-    seenIds.add(poiId);
+    seenNames.add(normalizedName);
+
+    const poiId = `poi-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`;
 
     const rawSource = get(row, "source");
     const source = rawSource || "internal";
@@ -208,10 +218,11 @@ export async function previewImportCsv(
 
   const totalRows = dataRows.length;
   return {
-    valid, errors, totalRows,
+    valid, errors, duplicateWarnings, totalRows,
     summary: {
       totalRows, validCount: valid.length, errorCount: errors.length,
       byCategory, byCity, bySource, missingCategory,
+      duplicateCount: duplicateWarnings.length,
     },
   };
 }

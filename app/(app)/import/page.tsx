@@ -11,9 +11,8 @@ type Progress = { done: number; total: number } | null;
 
 const BATCH_SIZE = 500;
 
-// Field wajib yang harus di-map
+// Field wajib yang harus di-map (poi_id di-generate otomatis, tidak perlu dari file)
 const REQUIRED_FIELDS = [
-  { key: "poi_id", label: "POI ID" },
   { key: "name",   label: "Nama POI" },
   { key: "city",   label: "Kota" },
   { key: "area",   label: "Area / Kecamatan" },
@@ -194,7 +193,8 @@ export default function ImportPage() {
         </a>
       </div>
       <p className="text-sm text-gray-500 mb-6">
-        Upload file CSV untuk menambahkan POI baru ke pool. Duplikat (poi_id sama) akan dilewati otomatis.
+        Upload file CSV untuk menambahkan POI baru ke pool. POI ID dibuat otomatis oleh sistem —
+        duplikat (nama POI sama) akan ditandai sebagai peringatan, bukan diblokir.
       </p>
 
       {/* Step indicator */}
@@ -207,7 +207,7 @@ export default function ImportPage() {
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6">
             <p className="text-xs font-semibold text-blue-700 mb-2">Kolom minimal yang dibutuhkan</p>
             <div className="bg-white rounded-xl px-3 py-2 font-mono text-[11px] text-gray-600 mb-2 overflow-x-auto whitespace-nowrap">
-              poi_id · poi_name · city · area
+              poi_name · city · area
             </div>
             <p className="text-xs text-blue-600">
               Format: <strong>Excel (.xlsx)</strong> atau CSV — Excel lebih aman untuk nama POI yang mengandung koma.
@@ -375,10 +375,34 @@ export default function ImportPage() {
             </div>
             <div className="bg-blue-50 rounded-xl px-3 py-2">
               <p className="text-xs text-blue-700">
-                Duplikat (poi_id yang sudah ada) akan dilewati otomatis — tidak perlu dicek manual.
+                POI ID dibuat otomatis. Duplikat nama POI ditandai sebagai peringatan di bawah,
+                tapi tetap akan diimpor kecuali kamu perbaiki manual di file.
               </p>
             </div>
           </div>
+
+          {/* ── Peringatan duplikat nama ── */}
+          {preview.duplicateWarnings.length > 0 && (
+            <div className="bg-white rounded-2xl border border-amber-200 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center text-amber-700 text-[11px] font-bold shrink-0">!</span>
+                <p className="text-sm font-semibold text-amber-700">
+                  {preview.duplicateWarnings.length} kemungkinan duplikat nama POI
+                </p>
+              </div>
+              <p className="text-xs text-amber-600 mb-2">
+                Baris ini tetap akan diimpor. Cek dulu kalau-kalau memang POI yang sama supaya tidak dobel.
+              </p>
+              <div className="bg-amber-50 rounded-xl p-3 max-h-40 overflow-auto space-y-1.5">
+                {preview.duplicateWarnings.map((warn, i) => (
+                  <div key={i} className="flex gap-2 text-xs text-amber-700">
+                    <span className="shrink-0 font-mono text-amber-400">{String(i + 1).padStart(2, "0")}.</span>
+                    <span>{warn}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── Distribusi data ── */}
           {preview.valid.length > 0 && (
@@ -485,7 +509,7 @@ export default function ImportPage() {
                 <table className="min-w-full text-xs">
                   <thead className="bg-gray-50">
                     <tr>
-                      {["poi_id", "name", "kategori", "kota", "area", "source"].map((h) => (
+                      {["name", "kategori", "kota", "area", "source"].map((h) => (
                         <th key={h} className="px-3 py-2 text-left font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                           {h}
                         </th>
@@ -495,7 +519,6 @@ export default function ImportPage() {
                   <tbody className="divide-y divide-gray-50 bg-white">
                     {preview.valid.slice(0, 5).map((row, i) => (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-mono text-gray-500 whitespace-nowrap">{row.poi_id}</td>
                         <td className="px-3 py-2 text-gray-900 max-w-45 truncate font-medium">{row.name}</td>
                         <td className="px-3 py-2 text-gray-600">{categoryLabel(row.category)}</td>
                         <td className="px-3 py-2 text-gray-600">{row.city}</td>
@@ -505,7 +528,7 @@ export default function ImportPage() {
                     ))}
                     {preview.valid.length > 5 && (
                       <tr>
-                        <td colSpan={6} className="px-3 py-2.5 text-center text-gray-400 bg-gray-50">
+                        <td colSpan={5} className="px-3 py-2.5 text-center text-gray-400 bg-gray-50">
                           + {preview.valid.length - 5} baris lainnya tidak ditampilkan
                         </td>
                       </tr>
