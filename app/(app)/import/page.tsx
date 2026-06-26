@@ -72,11 +72,13 @@ export default function ImportPage() {
   const [rawHeaders, setRawHeaders] = useState<string[]>([]);
   // columnMap: internal field → original CSV header
   const [columnMap, setColumnMap] = useState<Record<string, string>>({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     setFileName(file.name);
     setPreviewError(null);
 
@@ -97,7 +99,7 @@ export default function ImportPage() {
 
   // Build FormData dengan column_map dan submit preview
   const submitPreview = () => {
-    const file = fileInputRef.current?.files?.[0];
+    const file = selectedFile;
     if (!file) return;
     const formData = new FormData();
     formData.append("csv_file", file);
@@ -169,6 +171,7 @@ export default function ImportPage() {
     setPreviewError(null);
     setDone(null);
     setFileName(null);
+    setSelectedFile(null);
     setProgress(null);
     setLiveErrors([]);
     setRawHeaders([]);
