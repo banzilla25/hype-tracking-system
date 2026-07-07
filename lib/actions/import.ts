@@ -163,9 +163,12 @@ export async function previewImportCsv(
 
     const normalizedName = name.trim().toLowerCase();
     if (seenNames.has(normalizedName)) {
-      duplicateWarnings.push(`Baris ${i + 2}: nama "${name}" duplikat dengan baris lain di file ini`);
-    } else if (existingNames.has(normalizedName)) {
-      duplicateWarnings.push(`Baris ${i + 2}: nama "${name}" sudah ada di database`);
+      errors.push(`Baris ${i + 2}: nama "${name}" duplikat dengan baris lain di file ini — dilewati`);
+      continue;
+    }
+    if (existingNames.has(normalizedName)) {
+      errors.push(`Baris ${i + 2}: nama "${name}" sudah ada di database — dilewati`);
+      continue;
     }
     seenNames.add(normalizedName);
 

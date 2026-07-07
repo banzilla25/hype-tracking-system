@@ -201,7 +201,7 @@ export default function ImportPage() {
       </div>
       <p className="text-sm text-gray-500 mb-6">
         Upload file CSV untuk menambahkan POI baru ke pool. POI ID dibuat otomatis oleh sistem —
-        duplikat (nama POI sama) akan ditandai sebagai peringatan, bukan diblokir.
+        duplikat nama POI (dalam file atau sudah ada di database) otomatis ditolak.
       </p>
 
       {/* Step indicator */}
@@ -388,34 +388,10 @@ export default function ImportPage() {
             </div>
             <div className="bg-blue-50 rounded-xl px-3 py-2">
               <p className="text-xs text-blue-700">
-                POI ID dibuat otomatis. Duplikat nama POI ditandai sebagai peringatan di bawah,
-                tapi tetap akan diimpor kecuali kamu perbaiki manual di file.
+                POI ID dibuat otomatis. Baris dengan nama POI duplikat (dalam file atau sudah ada di database) otomatis ditolak.
               </p>
             </div>
           </div>
-
-          {/* ── Peringatan duplikat nama ── */}
-          {preview.duplicateWarnings.length > 0 && (
-            <div className="bg-white rounded-2xl border border-amber-200 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center text-amber-700 text-[11px] font-bold shrink-0">!</span>
-                <p className="text-sm font-semibold text-amber-700">
-                  {preview.duplicateWarnings.length} kemungkinan duplikat nama POI
-                </p>
-              </div>
-              <p className="text-xs text-amber-600 mb-2">
-                Baris ini tetap akan diimpor. Cek dulu kalau-kalau memang POI yang sama supaya tidak dobel.
-              </p>
-              <div className="bg-amber-50 rounded-xl p-3 max-h-40 overflow-auto space-y-1.5">
-                {preview.duplicateWarnings.map((warn, i) => (
-                  <div key={i} className="flex gap-2 text-xs text-amber-700">
-                    <span className="shrink-0 font-mono text-amber-400">{String(i + 1).padStart(2, "0")}.</span>
-                    <span>{warn}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* ── Distribusi data ── */}
           {preview.valid.length > 0 && (
