@@ -11,11 +11,9 @@ type Progress = { done: number; total: number } | null;
 
 const BATCH_SIZE = 500;
 
-// Field wajib yang harus di-map (poi_id di-generate otomatis, tidak perlu dari file)
+// Hanya name yang wajib; city & area kosong → default "lainnya"
 const REQUIRED_FIELDS = [
-  { key: "name",   label: "Nama POI" },
-  { key: "city",   label: "Kota" },
-  { key: "area",   label: "Area / Kecamatan" },
+  { key: "name", label: "Nama POI" },
 ];
 
 // Alias yang dikenali otomatis (sama dengan server)
@@ -210,13 +208,13 @@ export default function ImportPage() {
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6">
             <p className="text-xs font-semibold text-blue-700 mb-2">Kolom minimal yang dibutuhkan</p>
             <div className="bg-white rounded-xl px-3 py-2 font-mono text-[11px] text-gray-600 mb-2 overflow-x-auto whitespace-nowrap">
-              poi_name · city · area
+              poi_name
             </div>
             <p className="text-xs text-blue-600">
               Format: <strong>Excel (.xlsx)</strong> atau CSV — Excel lebih aman untuk nama POI yang mengandung koma.
             </p>
             <p className="text-xs text-blue-400 mt-1">
-              Nama kolom berbeda? Tidak masalah — bisa mapping manual setelah upload.
+              Kolom <code>city</code> & <code>area</code> opsional — jika kosong akan diisi &quot;lainnya&quot; otomatis.
             </p>
           </div>
 

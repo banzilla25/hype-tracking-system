@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import * as XLSX from "xlsx";
 
-// Kolom yang benar-benar wajib ada (poi_id di-generate otomatis, tidak perlu dari file)
-const REQUIRED_COLS = ["city", "area"];
+// Hanya name yang wajib; city & area kosong → default "lainnya"
+const REQUIRED_COLS: string[] = [];
 
 // Alias header → nama kolom internal (case-insensitive)
 const HEADER_ALIASES: Record<string, string> = {
@@ -128,7 +128,7 @@ export async function previewImportCsv(
 
   for (const req of REQUIRED_COLS) {
     if (!headers.includes(req))
-      return { error: `Kolom wajib tidak ditemukan: "${req}". File harus memiliki kolom poi_name, city, dan area.` };
+      return { error: `Kolom wajib tidak ditemukan: "${req}". File harus memiliki kolom poi_name atau name.` };
   }
   if (!headers.includes("name"))
     return { error: `Kolom nama tidak ditemukan. Tambahkan kolom "name" atau "poi_name".` };
@@ -153,10 +153,13 @@ export async function previewImportCsv(
     const city  = get(row, "city");
     const area  = get(row, "area");
 
-    if (!name || !city || !area) {
-      errors.push(`Baris ${i + 2}: kolom wajib kosong (name / city / area)`);
+    if (!name) {
+      errors.push(`Baris ${i + 2}: kolom wajib kosong (name / poi_name)`);
       continue;
     }
+
+    const effectiveCity = city || "lainnya";
+    const effectiveArea = area || "lainnya";
 
     const normalizedName = name.trim().toLowerCase();
     if (seenNames.has(normalizedName)) {
@@ -192,8 +195,8 @@ export async function previewImportCsv(
       poi_id:           poiId,
       name,
       category:         rawCategory || "lainnya",
-      city,
-      area,
+      city:             effectiveCity,
+      area:             effectiveArea,
       is_undersupplied: isUndersupplied,
       source,
       latitude:         lat && !isNaN(lat) ? lat : null,
