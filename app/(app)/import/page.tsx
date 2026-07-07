@@ -11,16 +11,27 @@ type Progress = { done: number; total: number } | null;
 
 const BATCH_SIZE = 500;
 
-// Hanya name yang wajib; city & area kosong → default "lainnya"
+// Field wajib — blocker jika tidak ter-map
 const REQUIRED_FIELDS = [
   { key: "name", label: "Nama POI" },
 ];
+
+// Field opsional — tampil di mapping UI, tidak blocker
+const OPTIONAL_FIELDS = [
+  { key: "city",     label: "Kota" },
+  { key: "area",     label: "Area / Kecamatan" },
+  { key: "category", label: "Kategori" },
+  { key: "source",   label: "Source" },
+];
+
+const ALL_FIELDS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
 
 // Alias yang dikenali otomatis (sama dengan server)
 const AUTO_ALIASES: Record<string, string> = {
   poi_name: "name", nama: "name",
   kota: "city",
   wilayah: "area", kawasan: "area",
+  kategori: "category",
 };
 
 async function parseHeaders(file: File): Promise<string[]> {
@@ -83,12 +94,12 @@ export default function ImportPage() {
     const headers = await parseHeaders(file);
     setRawHeaders(headers);
 
-    // Auto-detect: map internal field → CSV header
+    // Auto-detect: map internal field → CSV header (cek semua field, required + optional)
     const detected: Record<string, string> = {};
     for (const h of headers) {
       const lower = h.toLowerCase();
       const resolved = AUTO_ALIASES[lower] ?? lower;
-      if (REQUIRED_FIELDS.some(f => f.key === resolved)) {
+      if (ALL_FIELDS.some(f => f.key === resolved)) {
         detected[resolved] = h;
       }
     }
@@ -122,15 +133,10 @@ export default function ImportPage() {
     });
   };
 
-  // Step 1: cek apakah semua field sudah terdeteksi, atau tampilkan mapping UI
+  // Step 1: selalu tampilkan mapping step agar user bisa konfirmasi/atur semua kolom
   const handlePreview = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const missing = REQUIRED_FIELDS.filter(f => !columnMap[f.key]);
-    if (missing.length > 0) {
-      setStep("map");
-      return;
-    }
-    submitPreview();
+    setStep("map");
   };
 
   // Step 2 → Step 3: simpan ke DB per batch dengan progress
@@ -303,39 +309,45 @@ export default function ImportPage() {
       {/* ── Step Map: Mapping Kolom ─────────────────────────────────────── */}
       {step === "map" && (
         <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-            <p className="text-sm font-semibold text-amber-800 mb-1">Mapping kolom diperlukan</p>
-            <p className="text-xs text-amber-700">
-              Beberapa kolom wajib tidak terdeteksi otomatis. Pilih kolom mana dari file CSV kamu yang sesuai dengan tiap field.
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+            <p className="text-sm font-semibold text-blue-800 mb-1">Konfirmasi mapping kolom</p>
+            <p className="text-xs text-blue-700">
+              Kolom yang terdeteksi otomatis sudah terisi. Sesuaikan jika nama kolom di file CSV kamu berbeda. Kolom <strong>Nama POI</strong> wajib di-map, sisanya opsional.
             </p>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
-            {REQUIRED_FIELDS.map(({ key, label }) => (
-              <div key={key}>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  {label}
-                  <span className="ml-1 text-red-500">*</span>
-                </label>
-                <select
-                  value={columnMap[key] ?? ""}
-                  onChange={(e) => setColumnMap({ ...columnMap, [key]: e.target.value })}
-                  className={`w-full px-3 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
-                    columnMap[key] ? "border-green-300 text-gray-900" : "border-gray-300 text-gray-400"
-                  }`}
-                >
-                  <option value="">— pilih kolom dari file CSV —</option>
-                  {rawHeaders.map((h) => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
-                </select>
-                {columnMap[key] && (
-                  <p className="text-[11px] text-green-600 mt-1">
-                    ✓ &quot;{columnMap[key]}&quot; akan digunakan sebagai {label}
-                  </p>
-                )}
-              </div>
-            ))}
+            {ALL_FIELDS.map(({ key, label }) => {
+              const isRequired = REQUIRED_FIELDS.some(f => f.key === key);
+              return (
+                <div key={key}>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    {label}
+                    {isRequired
+                      ? <span className="ml-1 text-red-500">*</span>
+                      : <span className="ml-1 text-gray-400 font-normal">(opsional)</span>
+                    }
+                  </label>
+                  <select
+                    value={columnMap[key] ?? ""}
+                    onChange={(e) => setColumnMap({ ...columnMap, [key]: e.target.value })}
+                    className={`w-full px-3 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white ${
+                      columnMap[key] ? "border-green-300 text-gray-900" : "border-gray-300 text-gray-400"
+                    }`}
+                  >
+                    <option value="">— tidak dipakai / tidak ada di file —</option>
+                    {rawHeaders.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                  {columnMap[key] && (
+                    <p className="text-[11px] text-green-600 mt-1">
+                      ✓ &quot;{columnMap[key]}&quot; akan digunakan sebagai {label}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {previewError && (
