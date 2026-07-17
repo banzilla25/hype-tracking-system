@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   const freelancers = ((flRows ?? []) as {
     user_id: string; nickname: string;
     total: number; submitted: number; gagal: number;
-    auto_release: number; campaign_selesai: number;
+    auto_release: number; campaign_selesai: number; fee_aman: number;
   }[]).map((r) => ({
     user_id:         r.user_id,
     nickname:        r.nickname,
@@ -47,6 +47,7 @@ export default async function DashboardPage() {
     gagal:           Number(r.gagal),
     autoRelease:     Number(r.auto_release),
     campaignSelesai: Number(r.campaign_selesai),
+    feeAman:         Number(r.fee_aman),
   }));
 
   return (

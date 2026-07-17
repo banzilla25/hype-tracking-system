@@ -10,7 +10,10 @@ type FreelancerRow = {
   gagal: number;
   autoRelease: number;
   campaignSelesai: number;
+  feeAman: number;
 };
+
+const FEE_PER_POI = 10_000;
 
 // ── Funnel stages (in order of pipeline) ──────────────────────────────────
 
@@ -213,6 +216,7 @@ export default function DashboardClient({
                   <th className="pb-2.5 px-2 text-right">Auto-Release</th>
                   <th className="pb-2.5 px-2 text-right">Campaign ✓</th>
                   <th className="pb-2.5 px-2 text-right">Submit Rate</th>
+                  <th className="pb-2.5 px-2 text-right">Fee (est.)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -235,6 +239,9 @@ export default function DashboardClient({
                       <td className="py-3 px-2 text-right text-green-600 font-medium">{fl.campaignSelesai}</td>
                       <td className={`py-3 px-2 text-right font-semibold ${rateColor}`}>
                         {submitRate}%
+                      </td>
+                      <td className="py-3 px-2 text-right font-semibold text-green-700">
+                        Rp{(fl.feeAman * FEE_PER_POI).toLocaleString("id-ID")}
                       </td>
                     </tr>
                   );
