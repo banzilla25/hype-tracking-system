@@ -215,6 +215,7 @@ export default function DashboardClient({
                   <th className="pb-2.5 px-2 text-right">Gagal</th>
                   <th className="pb-2.5 px-2 text-right">Auto-Release</th>
                   <th className="pb-2.5 px-2 text-right">Campaign ✓</th>
+                  <th className="pb-2.5 px-2 text-right">Valid</th>
                   <th className="pb-2.5 px-2 text-right">Submit Rate</th>
                   <th className="pb-2.5 px-2 text-right">Fee (est.)</th>
                 </tr>
@@ -237,6 +238,9 @@ export default function DashboardClient({
                       <td className="py-3 px-2 text-right text-orange-500">{fl.gagal}</td>
                       <td className="py-3 px-2 text-right text-red-400">{fl.autoRelease}</td>
                       <td className="py-3 px-2 text-right text-green-600 font-medium">{fl.campaignSelesai}</td>
+                      <td className="py-3 px-2 text-right font-medium text-green-600">
+                        {fl.feeAman}
+                      </td>
                       <td className={`py-3 px-2 text-right font-semibold ${rateColor}`}>
                         {submitRate}%
                       </td>
